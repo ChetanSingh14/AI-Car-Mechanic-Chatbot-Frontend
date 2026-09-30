@@ -1,8 +1,89 @@
 import { ApiResponse, Booking, Conversation, Diagnosis, MediaAttachment, Message, SeverityLevel } from '../types';
 import { generateId, detectFileType } from '../lib/utils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-// http://13.234.4.236/api/docs/
+/**
+ * Single Source of Truth for AutoTech API Configuration & Endpoints
+ */
+export const BACKEND_TARGET_URL =
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://13.234.4.236/api';
+
+export const PROXY_API_PATH = '/api/backend';
+
+/**
+ * Dynamic API Base URL resolution:
+ * When accessed over HTTPS (e.g. on Vercel) and the EC2 backend is plain HTTP,
+ * all client requests are automatically routed via the same-origin proxy (/api/backend)
+ * to prevent Mixed Content security blocking by the browser.
+ */
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const isHttps = window.location.protocol === 'https:';
+    if (isHttps && BACKEND_TARGET_URL.startsWith('http://')) {
+      return PROXY_API_PATH;
+    }
+  }
+  return BACKEND_TARGET_URL;
+}
+
+/**
+ * Universal Server Proxy Handler for Next.js Route Dispatcher:
+ * Forwards requests server-to-server to the EC2 backend without CORS/Mixed-Content issues.
+ */
+export async function handleBackendProxy(
+  request: Request,
+  pathSegments: string[],
+  queryString: string = ''
+): Promise<Response> {
+  try {
+    const targetBase = BACKEND_TARGET_URL.replace(/\/$/, '');
+    const pathStr = (pathSegments || []).join('/');
+    const normalizedPath = pathStr.endsWith('/') ? pathStr : `${pathStr}/`;
+    const targetUrl = `${targetBase}/${normalizedPath}${queryString}`;
+
+    const headers = new Headers();
+    const contentType = request.headers.get('content-type');
+    if (contentType) headers.set('content-type', contentType);
+    const accept = request.headers.get('accept');
+    if (accept) headers.set('accept', accept);
+
+    let body: BodyInit | null = null;
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      body = await request.arrayBuffer();
+    }
+
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body,
+      cache: 'no-store',
+    });
+
+    const data = await response.arrayBuffer();
+    const resHeaders = new Headers();
+    const resContentType = response.headers.get('content-type');
+    if (resContentType) resHeaders.set('content-type', resContentType);
+
+    return new Response(data, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: resHeaders,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Backend proxy error';
+    return new Response(
+      JSON.stringify({ error: { message } }),
+      {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
+  }
+}
+
+
 /**
  * Check backend API health
  */
@@ -11,7 +92,7 @@ export async function checkBackendHealth(): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-    const res = await fetch(`${API_BASE_URL}/docs/`, {
+    const res = await fetch(`${getApiBaseUrl()}/docs/`, {
       method: 'GET',
       signal: controller.signal
     }).catch(() => null);
@@ -177,7 +258,7 @@ export async function sendChatMessage(params: {
       conversation_id: payloadId
     };
 
-    const res = await fetch(`${API_BASE_URL}/chat/`, {
+    const res = await fetch(`${getApiBaseUrl()}/chat/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -250,7 +331,7 @@ export async function uploadMedia(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    const res = await fetch(`${API_BASE_URL}/upload/`, {
+    const res = await fetch(`${getApiBaseUrl()}/upload/`, {
       method: 'POST',
       body: formData,
       signal: controller.signal
@@ -305,7 +386,7 @@ export async function generateDiagnosis(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    const res = await fetch(`${API_BASE_URL}/diagnosis/`, {
+    const res = await fetch(`${getApiBaseUrl()}/diagnosis/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conversation_id: isValidConvId ? conversationId : undefined }),
@@ -359,7 +440,7 @@ export async function createBooking(params: {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const res = await fetch(`${API_BASE_URL}/booking/`, {
+    const res = await fetch(`${getApiBaseUrl()}/booking/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -409,7 +490,7 @@ export async function createBooking(params: {
  */
 export async function getBookingDetails(bookingId: string): Promise<ApiResponse<Booking>> {
   try {
-    const res = await fetch(`${API_BASE_URL}/booking/${bookingId}/`);
+    const res = await fetch(`${getApiBaseUrl()}/booking/${bookingId}/`);
     if (!res.ok) throw new Error(`Not found: ${res.status}`);
     return await res.json();
   } catch (err: unknown) {
@@ -426,7 +507,7 @@ export async function getBookingDetails(bookingId: string): Promise<ApiResponse<
  */
 export async function getConversationDetails(conversationId: string): Promise<ApiResponse<Conversation>> {
   try {
-    const res = await fetch(`${API_BASE_URL}/conversation/${conversationId}/`);
+    const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`);
     if (!res.ok) throw new Error(`Not found: ${res.status}`);
     return await res.json();
   } catch (err: unknown) {
