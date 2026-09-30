@@ -2,7 +2,7 @@ import { ApiResponse, Booking, Conversation, Diagnosis, MediaAttachment, Message
 import { generateId, detectFileType } from '../lib/utils';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-
+// http://13.234.4.236/api/docs/
 /**
  * Check backend API health
  */
