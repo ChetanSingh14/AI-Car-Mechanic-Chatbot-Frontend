@@ -118,11 +118,11 @@ cd AI-Car-Mechanic-Chatbot-Frontend
 npm install
 ```
 
-3. Configure Environment Variables (Optional):
+### 3. Configure Environment Variables (Optional):
 Create a `.env.local` file:
 ```env
-# Optional: Set EC2 or local backend URL (Defaults to http://13.234.4.236/api)
-BACKEND_API_URL=http://13.234.4.236/api
+# Optional: Set custom backend URL (Defaults to local/cloud backend endpoint)
+BACKEND_API_URL=http://localhost:8000/api
 ```
 *(Note: If the backend is not running, AutoTech AI automatically switches to its built-in offline simulation engine so you can test all features smoothly).*
 
@@ -146,15 +146,16 @@ npm run start
 ### Deploying to Vercel
 1. Import the repository into [Vercel](https://vercel.com).
 2. *(Optional)* Under **Project Settings ➔ Environment Variables**, configure:
-   - `BACKEND_API_URL`: `http://13.234.4.236/api` (or your custom backend endpoint).
+   - `BACKEND_API_URL`: Your backend API endpoint URL (e.g. `http://your-backend-host/api`).
 3. Deploy! Next.js will automatically proxy all API and media calls over HTTPS.
 
-### AWS EC2 Backend Media Permissions
-To ensure uploaded images/media are readable by Nginx on your AWS EC2 instance:
+### Production Backend Media Permissions
+To ensure uploaded images/media are readable by Nginx on your Linux production server:
 ```bash
 sudo chmod -R 755 /path/to/backend/media
 sudo chown -R ubuntu:www-data /path/to/backend/media
 ```
+
 
 ---
 
