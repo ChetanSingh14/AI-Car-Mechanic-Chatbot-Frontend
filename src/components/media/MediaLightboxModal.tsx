@@ -47,7 +47,7 @@ export const MediaLightboxModal: React.FC = () => {
               <h3 className="font-bold text-slate-100 text-sm sm:text-base max-w-md truncate">
                 {activeLightboxMedia.original_name}
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-400" suppressHydrationWarning>
                 Uploaded {formatDate(activeLightboxMedia.uploaded_at)}{' '}
                 {activeLightboxMedia.file_size ? `• ${formatFileSize(activeLightboxMedia.file_size)}` : ''}
               </p>

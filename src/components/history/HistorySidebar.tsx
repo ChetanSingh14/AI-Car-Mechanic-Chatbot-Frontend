@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useChat } from '../../hooks/useChat';
 import {
   Plus,
@@ -27,8 +27,14 @@ export const HistorySidebar: React.FC = () => {
   } = useChat();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const filteredHistory = useMemo(() => {
+    if (!isMounted) return [];
     if (!searchQuery.trim()) return conversationsHistory;
     const q = searchQuery.toLowerCase();
     return conversationsHistory.filter(
@@ -38,7 +44,7 @@ export const HistorySidebar: React.FC = () => {
         (c.car_model && c.car_model.toLowerCase().includes(q)) ||
         (c.diagnosis && c.diagnosis.issue_title.toLowerCase().includes(q))
     );
-  }, [conversationsHistory, searchQuery]);
+  }, [conversationsHistory, searchQuery, isMounted]);
 
   return (
     <>
@@ -95,7 +101,7 @@ export const HistorySidebar: React.FC = () => {
 
         {/* Sessions List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2 pr-1">
-          {filteredHistory.length === 0 ? (
+          {!isMounted || filteredHistory.length === 0 ? (
             <div className="text-center py-10 px-2 space-y-2">
               <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-slate-600">
                 <MessageSquare className="h-5 w-5" />
@@ -151,7 +157,7 @@ export const HistorySidebar: React.FC = () => {
 
                   {/* Status Pills */}
                   <div className="mt-2.5 flex items-center justify-between border-t border-slate-800/60 pt-2 text-[10px]">
-                    <span className="text-slate-500">{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
+                    <span className="text-slate-500" suppressHydrationWarning>{formatRelativeTime(conv.updated_at || conv.created_at)}</span>
 
                     {isBooked ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.2 font-bold text-emerald-400">

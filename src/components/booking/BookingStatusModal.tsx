@@ -159,7 +159,7 @@ export const BookingStatusModal: React.FC<BookingStatusModalProps> = ({ isOpen, 
               )}
             </div>
 
-            <div className="text-[11px] text-slate-500 border-t border-slate-800/80 pt-2 text-right">
+            <div className="text-[11px] text-slate-500 border-t border-slate-800/80 pt-2 text-right" suppressHydrationWarning>
               Booked on {formatDate(booking.created_at)}
             </div>
           </div>

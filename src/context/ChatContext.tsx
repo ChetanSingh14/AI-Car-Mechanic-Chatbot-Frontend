@@ -97,7 +97,15 @@ const INITIAL_WELCOME_MESSAGE: Message = {
   sender: 'assistant',
   content: `👋 **Welcome to AutoTech AI Master Diagnostics!**\n\nI am your virtual ASE-Certified Master Automobile Technician. I can inspect and diagnose mechanical, electrical, brake, engine, and transmission issues.\n\n🛠️ **How to get started:**\n- Describe what sounds, warning lights, or handling issues you are experiencing.\n- **Upload photos, record audio/video** of the abnormal noise or engine bay.\n- Click **"Generate Diagnosis"** at any time for certified repair quotes & mechanic booking.`,
   is_ai_generated: true,
-  created_at: new Date().toISOString()
+  created_at: '2025-01-01T00:00:00.000Z'
+};
+
+const DEFAULT_VEHICLE: VehicleInfo = {
+  make: 'Honda',
+  model: 'Civic',
+  year: '2019',
+  mileage: '45,000 miles',
+  engine: '1.5L Turbo'
 };
 
 const STORAGE_KEYS = {
@@ -108,16 +116,8 @@ const STORAGE_KEYS = {
 };
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Vehicle state
-  const [vehicle, setVehicle] = useState<VehicleInfo>(() =>
-    safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, {
-      make: 'Honda',
-      model: 'Civic',
-      year: '2019',
-      mileage: '45,000 miles',
-      engine: '1.5L Turbo'
-    })
-  );
+  // Vehicle state - default for initial render to ensure matching SSR/client HTML
+  const [vehicle, setVehicle] = useState<VehicleInfo>(DEFAULT_VEHICLE);
 
   // Active chat state
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -131,13 +131,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // History & Bookings initialized from localStorage directly
-  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>(() =>
-    safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, [])
-  );
-  const [bookings, setBookings] = useState<Booking[]>(() =>
-    safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, [])
-  );
+  // History & Bookings initialized with [] for SSR matching, populated in useEffect
+  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Modals & UI controls
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -165,6 +161,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Load saved state from localStorage after initial client hydration
+  useEffect(() => {
+    const savedVehicle = safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, DEFAULT_VEHICLE);
+    const savedHistory = safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
+    const savedBookings = safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, []);
+
+    setVehicle(savedVehicle);
+    setConversationsHistory(savedHistory);
+    setBookings(savedBookings);
   }, []);
 
   // Check Backend Connectivity on mount

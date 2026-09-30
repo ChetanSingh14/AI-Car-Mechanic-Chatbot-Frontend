@@ -35,7 +35,7 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({
           <h2 className="text-lg sm:text-xl font-extrabold text-slate-100 mt-1 tracking-tight">
             {diagnosis.issue_title}
           </h2>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-slate-500" suppressHydrationWarning>
             Generated {formatDate(diagnosis.created_at)} • AutoTech AI Engine
           </span>
         </div>

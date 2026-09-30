@@ -78,7 +78,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
             </span>
           )}
 
-          <span className="text-[10px] text-slate-500">{formatDate(message.created_at)}</span>
+          <span className="text-[10px] text-slate-500" suppressHydrationWarning>{formatDate(message.created_at)}</span>
         </div>
 
         {/* Message Bubble Card */}

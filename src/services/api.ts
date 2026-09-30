@@ -9,7 +9,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/a
 export async function checkBackendHealth(): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     const res = await fetch(`${API_BASE_URL}/docs/`, {
       method: 'GET',
@@ -154,7 +154,9 @@ export async function sendChatMessage(params: {
     is_ai_generated: boolean;
   }>
 > {
-  const convId = params.conversation_id || generateId('conv');
+  const isClientOnlyId = params.conversation_id && params.conversation_id.startsWith('conv-');
+  const payloadId = isClientOnlyId ? undefined : params.conversation_id;
+  const convId = payloadId || generateId('conv');
   const now = new Date().toISOString();
 
   const userMsg: Message = {
@@ -168,19 +170,26 @@ export async function sendChatMessage(params: {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    const payload = {
+      ...params,
+      conversation_id: payloadId
+    };
 
     const res = await fetch(`${API_BASE_URL}/chat/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
+      const errorJson = await res.json().catch(() => null);
+      console.error('[AutoTech API /chat/ Error Detail]:', res.status, errorJson);
+      throw new Error(`HTTP error! status: ${res.status} - ${JSON.stringify(errorJson)}`);
     }
 
     const data = await res.json();
@@ -189,7 +198,6 @@ export async function sendChatMessage(params: {
     const errorMessage = err instanceof Error ? err.message : 'Backend connection unavailable';
     console.warn(`[AutoTech API] Falling back to intelligent local diagnostic engine: ${errorMessage}`);
 
-    // High quality simulated assistant response
     const simulatedContent = simulateAiChatResponse(
       params.message,
       { make: params.car_make, model: params.car_model, year: params.car_year },
@@ -230,14 +238,17 @@ export async function uploadMedia(
 ): Promise<ApiResponse<MediaAttachment>> {
   const fileType = detectFileType(file);
   const localPreviewUrl = URL.createObjectURL(file);
+  const isValidConvId = conversationId && !conversationId.startsWith('conv-') && conversationId !== 'null';
 
   try {
     const formData = new FormData();
-    formData.append('conversation_id', conversationId);
+    if (isValidConvId) {
+      formData.append('conversation_id', conversationId);
+    }
     formData.append('file', file);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(`${API_BASE_URL}/upload/`, {
       method: 'POST',
@@ -248,6 +259,8 @@ export async function uploadMedia(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      const errorJson = await res.json().catch(() => null);
+      console.error('[AutoTech API /upload/ Error Detail]:', res.status, errorJson);
       throw new Error(`Upload failed with status: ${res.status}`);
     }
 
@@ -286,20 +299,24 @@ export async function generateDiagnosis(
   symptomsContext?: string,
   vehicleInfo?: string
 ): Promise<ApiResponse<Diagnosis>> {
+  const isValidConvId = conversationId && !conversationId.startsWith('conv-') && conversationId !== 'null';
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(`${API_BASE_URL}/diagnosis/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: conversationId }),
+      body: JSON.stringify({ conversation_id: isValidConvId ? conversationId : undefined }),
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      const errorJson = await res.json().catch(() => null);
+      console.error('[AutoTech API /diagnosis/ Error Detail]:', res.status, errorJson);
       throw new Error(`Diagnosis generation failed: ${res.status}`);
     }
 
@@ -340,7 +357,7 @@ export async function createBooking(params: {
 }): Promise<ApiResponse<Booking>> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const res = await fetch(`${API_BASE_URL}/booking/`, {
       method: 'POST',
@@ -352,6 +369,8 @@ export async function createBooking(params: {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      const errorJson = await res.json().catch(() => null);
+      console.error('[AutoTech API /booking/ Error Detail]:', res.status, errorJson);
       throw new Error(`Booking request failed with code: ${res.status}`);
     }
 

@@ -14,6 +14,16 @@ export const VehicleSelector: React.FC = () => {
   const [year, setYear] = useState(vehicle.year || '2019');
   const [engine, setEngine] = useState(vehicle.engine || '1.5L Turbo');
 
+  // Keep local state in sync when vehicle loads from storage
+  React.useEffect(() => {
+    if (!isOpen) {
+      setMake(vehicle.make || 'Honda');
+      setModel(vehicle.model || 'Civic');
+      setYear(vehicle.year || '2019');
+      setEngine(vehicle.engine || '1.5L Turbo');
+    }
+  }, [vehicle, isOpen]);
+
   const availableModels = POPULAR_MODELS_BY_MAKE[make] || [];
 
   const handleMakeChange = (newMake: string) => {
