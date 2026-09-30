@@ -55,6 +55,12 @@ An enterprise-grade, senior-architected AI automotive troubleshooting and repair
 - **Vehicle Profile Selector**: Catalog of major vehicle makes, models, model years, and powertrain engines.
 - **OBD-II Fault Code Database**: Searchable database of common trouble codes (`P0300`, `P0420`, `P0171`, `P0128`, `P0455`, `P0700`) with one-click insertion into the AI chat.
 
+### 🛡️ 7. Same-Origin Reverse Proxy & Mixed-Content Immunity
+- **Next.js Server Proxy Engine**: Automatically routes API calls (`/api/backend/*`) and media files (`/media/*`) through a same-origin server bridge when deployed on HTTPS (e.g., Vercel).
+- **Zero Mixed-Content Errors**: Enables full HTTPS frontend deployments to communicate with plain HTTP AWS EC2 backend servers seamlessly without browser security blocks.
+- **Universal Media URL Normalizer**: Normalizes uploaded vehicle inspection photos, recorded audio waveforms, and video clips so they load via secure proxy routes.
+- **Intelligent Offline Fallback Simulator**: If the remote backend is unreachable or offline, the frontend automatically switches to a local deterministic AI diagnosis engine without breaking the UI experience.
+
 ---
 
 ## 🏗️ Folder Structure
@@ -64,7 +70,10 @@ src/
 ├── app/
 │   ├── layout.tsx                # Root layout with metadata and font configurations
 │   ├── page.tsx                  # Home page with Provider and AppLayout
-│   └── globals.css               # Light/Dark design tokens, animations, custom scrollbars
+│   ├── globals.css               # Light/Dark design tokens, animations, custom scrollbars
+│   ├── api/
+│   │   └── backend/[...path]/    # Next.js API reverse proxy dispatcher
+│   └── media/[...path]/          # Next.js Media reverse proxy (images, audio, video)
 ├── context/
 │   └── ChatContext.tsx           # Centralized single source of truth & Theme state manager
 ├── hooks/
@@ -80,10 +89,10 @@ src/
 │   ├── ui/                       # Reusable ToastContainer, Modal, SeverityBadge
 │   └── layout/                   # Header & AppLayout
 ├── services/
-│   └── api.ts                    # Resilient typed API client with smart offline fallback simulator
+│   └── api.ts                    # Single source of truth: API client, media proxy engine & offline fallback
 ├── lib/
 │   ├── constants.ts              # Vehicle catalog, OBD-II dataset & mechanic partners
-│   └── utils.ts                  # File validation, time formatters & localStorage helpers
+│   └── utils.ts                  # File validation, time formatters, media URL normalizer & storage helpers
 └── types/
     └── index.ts                  # Strict TypeScript interfaces with 0 `any`
 ```
@@ -112,7 +121,8 @@ npm install
 3. Configure Environment Variables (Optional):
 Create a `.env.local` file:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
+# Optional: Set EC2 or local backend URL (Defaults to http://13.234.4.236/api)
+BACKEND_API_URL=http://13.234.4.236/api
 ```
 *(Note: If the backend is not running, AutoTech AI automatically switches to its built-in offline simulation engine so you can test all features smoothly).*
 
@@ -131,9 +141,27 @@ npm run start
 
 ---
 
+## ☁️ Deployment Guide
+
+### Deploying to Vercel
+1. Import the repository into [Vercel](https://vercel.com).
+2. *(Optional)* Under **Project Settings ➔ Environment Variables**, configure:
+   - `BACKEND_API_URL`: `http://13.234.4.236/api` (or your custom backend endpoint).
+3. Deploy! Next.js will automatically proxy all API and media calls over HTTPS.
+
+### AWS EC2 Backend Media Permissions
+To ensure uploaded images/media are readable by Nginx on your AWS EC2 instance:
+```bash
+sudo chmod -R 755 /path/to/backend/media
+sudo chown -R ubuntu:www-data /path/to/backend/media
+```
+
+---
+
 ## 🛠️ Tech Stack
-- **Framework**: Next.js (App Router, Turbopack)
+- **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript (Strict Typing)
 - **Styling**: Tailwind CSS v4, Glassmorphism, Theme Variables
 - **Icons**: Lucide React
 - **Audio Processing**: Web Audio API & MediaRecorder
+
