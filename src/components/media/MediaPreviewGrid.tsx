@@ -20,7 +20,7 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
   if (!attachments || attachments.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 py-2">
+    <div className="flex flex-wrap gap-1.5 py-1">
       {attachments.map((media) => {
         const isImage = media.file_type === 'image';
         const isAudio = media.file_type === 'audio';
@@ -29,12 +29,12 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
         return (
           <div
             key={media.id}
-            className="group relative flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 p-1.5 pr-3 text-xs shadow-md transition-all hover:border-amber-500/50 hover:bg-slate-850"
+            className="group relative flex items-center gap-1.5 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-1 pr-2.5 text-xs shadow-xs transition-all hover:border-amber-500/50"
           >
             {/* Thumbnail or Icon */}
             <div
               onClick={() => onPreview && onPreview(media)}
-              className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-slate-950 border border-slate-800 text-amber-400 group-hover:opacity-90"
+              className="relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-amber-500 dark:text-amber-400 group-hover:opacity-90"
             >
               {isImage && media.file_url ? (
                 <img
@@ -43,16 +43,16 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
                   className="h-full w-full object-cover"
                 />
               ) : isAudio ? (
-                <Music className="h-5 w-5" />
+                <Music className="h-4 w-4" />
               ) : isVideo ? (
-                <Video className="h-5 w-5" />
+                <Video className="h-4 w-4" />
               ) : (
-                <ImageIcon className="h-5 w-5" />
+                <ImageIcon className="h-4 w-4" />
               )}
 
               {onPreview && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Eye className="h-3.5 w-3.5 text-white" />
+                  <Eye className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
@@ -60,11 +60,11 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
             {/* Media Metadata */}
             <div
               onClick={() => onPreview && onPreview(media)}
-              className="cursor-pointer max-w-[140px] truncate"
+              className="cursor-pointer max-w-[120px] truncate"
             >
-              <p className="truncate font-medium text-slate-200">{media.original_name}</p>
-              <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                <span className="uppercase font-semibold text-amber-400/90">{media.file_type}</span>
+              <p className="truncate font-medium text-slate-800 dark:text-slate-200 text-[11px]">{media.original_name}</p>
+              <div className="flex items-center gap-1 text-[9px] text-slate-400">
+                <span className="uppercase font-semibold text-amber-600 dark:text-amber-400">{media.file_type}</span>
                 {media.file_size && <span>• {formatFileSize(media.file_size)}</span>}
               </div>
             </div>
@@ -74,10 +74,10 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
               <button
                 type="button"
                 onClick={() => onRemove(media.id)}
-                className="ml-1 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-rose-400"
+                className="ml-0.5 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-rose-500"
                 title="Remove attachment"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>

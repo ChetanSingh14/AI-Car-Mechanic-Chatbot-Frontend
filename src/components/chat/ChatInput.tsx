@@ -38,7 +38,7 @@ export const ChatInput: React.FC = () => {
     setText(e.target.value);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`;
     }
   };
 
@@ -120,7 +120,7 @@ export const ChatInput: React.FC = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative border-t border-slate-800/90 bg-slate-950/80 p-3 sm:p-4 backdrop-blur-xl transition-all ${
+      className={`relative border-t border-slate-200 dark:border-slate-800/90 bg-white/95 dark:bg-slate-950/80 p-2 sm:p-3 backdrop-blur-xl transition-all shrink-0 ${
         isDragOver ? 'border-amber-500/80 bg-amber-500/5' : ''
       }`}
     >
@@ -135,23 +135,23 @@ export const ChatInput: React.FC = () => {
 
       {/* Drag Over Overlay Alert */}
       {isDragOver && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/90 border-2 border-dashed border-amber-500 rounded-2xl backdrop-blur-sm animate-in fade-in">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/90 dark:bg-slate-950/90 border-2 border-dashed border-amber-500 rounded-2xl backdrop-blur-sm animate-in fade-in">
           <div className="text-center space-y-1">
-            <Sparkles className="h-8 w-8 text-amber-400 mx-auto animate-bounce" />
-            <p className="font-bold text-slate-100 text-sm">Drop Media to Upload</p>
-            <p className="text-xs text-slate-400">Photos, Audio clips, or Diagnostic Videos</p>
+            <Sparkles className="h-6 w-6 text-amber-500 dark:text-amber-400 mx-auto animate-bounce" />
+            <p className="font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Drop Media to Upload</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">Photos, Audio clips, or Diagnostic Videos</p>
           </div>
         </div>
       )}
 
       {/* Quick Prompts Bar if toggled */}
       {showQuickPrompts && (
-        <div className="mb-3 animate-in fade-in slide-in-from-bottom-2">
+        <div className="mb-2 animate-in fade-in slide-in-from-bottom-1">
           <div className="flex items-center justify-between pb-1">
-            <span className="text-[11px] font-bold text-amber-400">Select Common Vehicle Symptom</span>
+            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Quick Symptoms</span>
             <button
               onClick={() => setShowQuickPrompts(false)}
-              className="text-slate-400 hover:text-slate-200"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -162,9 +162,9 @@ export const ChatInput: React.FC = () => {
 
       {/* Active Attachment Previews */}
       {mediaAttachments.length > 0 && (
-        <div className="mb-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Attached Diagnostic Media ({mediaAttachments.length})
+        <div className="mb-1.5">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Attached ({mediaAttachments.length})
           </span>
           <MediaPreviewGrid
             attachments={mediaAttachments}
@@ -175,18 +175,18 @@ export const ChatInput: React.FC = () => {
       )}
 
       {/* Main Input Controls Row */}
-      <form onSubmit={handleSend} className="flex items-end gap-2">
+      <form onSubmit={handleSend} className="flex items-end gap-1.5 sm:gap-2">
         {/* Media Attachments Button */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isLoading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/90 text-slate-300 transition-all hover:border-amber-500/60 hover:bg-slate-800 hover:text-amber-400 hover:scale-105 active:scale-95 disabled:opacity-40"
+            className="flex h-8.5 w-8.5 sm:h-9.5 sm:w-9.5 items-center justify-center rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 transition-all hover:border-amber-500/60 hover:text-amber-500 dark:hover:text-amber-400 active:scale-95 disabled:opacity-40"
             title="Attach Photo / Video / Audio File"
           >
             {isUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-amber-500 dark:text-amber-400" />
             ) : (
               <Paperclip className="h-4 w-4" />
             )}
@@ -197,7 +197,7 @@ export const ChatInput: React.FC = () => {
         <AudioRecorder onAudioRecorded={processFile} isUploading={isUploading} />
 
         {/* Textarea Input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -205,18 +205,18 @@ export const ChatInput: React.FC = () => {
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            placeholder="Describe vehicle symptoms, noises, smells, or warning lights... (Enter to send)"
-            className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-2.5 pr-10 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:border-amber-500/80 focus:outline-none focus:ring-1 focus:ring-amber-500/80 disabled:opacity-50 min-h-[42px] max-h-[140px]"
+            placeholder="Describe vehicle symptoms... (Enter to send)"
+            className="w-full resize-none rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 px-3 py-2 sm:px-3.5 sm:py-2.5 pr-8 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-amber-500/80 focus:outline-none focus:ring-1 focus:ring-amber-500/80 disabled:opacity-50 min-h-[36px] sm:min-h-[40px] max-h-[100px]"
           />
 
           {/* Prompt Suggestion Toggle Icon */}
           <button
             type="button"
             onClick={() => setShowQuickPrompts(!showQuickPrompts)}
-            className="absolute right-3 top-2.5 text-slate-400 hover:text-amber-400 transition-colors"
+            className="absolute right-2 top-2 sm:right-2.5 sm:top-2.5 text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
             title="Toggle Quick Symptom Suggestions"
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -224,7 +224,7 @@ export const ChatInput: React.FC = () => {
         <button
           type="submit"
           disabled={!text.trim() || isLoading}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-orange-500 text-slate-950 font-bold shadow-xl shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100"
+          className="flex h-8.5 w-8.5 sm:h-9.5 sm:w-9.5 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500 via-amber-400 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100"
           title="Send message to mechanic AI"
         >
           {isLoading ? (

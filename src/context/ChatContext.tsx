@@ -87,6 +87,10 @@ interface ChatContextType {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
+
+  // Theme
+  theme: 'dark' | 'light';
+  toggleTheme: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -112,10 +116,14 @@ const STORAGE_KEYS = {
   CONVERSATIONS: 'autotech_conversations_v2',
   ACTIVE_ID: 'autotech_active_id_v2',
   VEHICLE: 'autotech_vehicle_v2',
-  BOOKINGS: 'autotech_bookings_v2'
+  BOOKINGS: 'autotech_bookings_v2',
+  THEME: 'autotech_theme_v2'
 };
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Theme state
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
   // Vehicle state - default for initial render to ensure matching SSR/client HTML
   const [vehicle, setVehicle] = useState<VehicleInfo>(DEFAULT_VEHICLE);
 
@@ -168,10 +176,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedVehicle = safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, DEFAULT_VEHICLE);
     const savedHistory = safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
     const savedBookings = safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, []);
+    const savedTheme = safeLocalStorageGet<'dark' | 'light'>(STORAGE_KEYS.THEME, 'dark');
 
     setVehicle(savedVehicle);
     setConversationsHistory(savedHistory);
     setBookings(savedBookings);
+    setTheme(savedTheme);
+
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.classList.add('dark');
+      document.body.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.body.classList.remove('dark');
+      document.body.setAttribute('data-theme', 'light');
+    }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const nextTheme = prev === 'dark' ? 'light' : 'dark';
+      safeLocalStorageSet(STORAGE_KEYS.THEME, nextTheme);
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark');
+        document.body.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.body.classList.remove('dark');
+        document.body.setAttribute('data-theme', 'light');
+      }
+      return nextTheme;
+    });
   }, []);
 
   // Check Backend Connectivity on mount
@@ -641,7 +682,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isBackendConnected,
       isSidebarOpen,
       setIsSidebarOpen,
-      toggleSidebar
+      toggleSidebar,
+      theme,
+      toggleTheme
     }),
     [
       conversationId,
@@ -680,7 +723,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeToast,
       isBackendConnected,
       isSidebarOpen,
-      toggleSidebar
+      toggleSidebar,
+      theme,
+      toggleTheme
     ]
   );
 

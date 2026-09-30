@@ -1,19 +1,78 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --bg-card-solid: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --border-main: rgba(203, 213, 225, 0.85);
+    --border-subtle: rgba(226, 232, 240, 0.85);
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --accent-amber: #d97706;
+    --accent-amber-light: rgba(217, 119, 6, 0.12);
+  }
+
+  html.dark,
+  [data-theme="dark"] {
+    --bg-main: #020617;
+    --bg-card: rgba(15, 23, 42, 0.75);
+    --bg-card-solid: #0f172a;
+    --bg-subtle: #1e293b;
+    --border-main: rgba(51, 65, 85, 0.6);
+    --border-subtle: rgba(30, 41, 59, 0.8);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent-amber: #f59e0b;
+    --accent-amber-light: rgba(245, 158, 11, 0.12);
+    color-scheme: dark;
+  }
+
+  html:not(.dark),
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+
+  html {
+    height: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    background-color: #020617;
-    color: #f8fafc;
+    background-color: var(--bg-main);
+    color: var(--text-main);
     overflow-x: hidden;
+    min-height: 100dvh;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
-/* Glassmorphism utility */
+/* Glassmorphism & Surface Utilities */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(51, 65, 85, 0.5);
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-main);
+}
+
+.glass-panel-subtle {
+  background: var(--bg-subtle);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-amber);
+  box-shadow: 0 12px 30px -10px var(--accent-amber-light);
 }
 
 /* Custom modern scrollbar styling */
@@ -23,22 +82,39 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.6);
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+html.dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.7);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(245, 158, 11, 0.6);
+  background: var(--accent-amber);
 }
 
-/* Keyframes for audio waveform pulse */
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+html.dark *,
+[data-theme="dark"] * {
+  scrollbar-color: rgba(51, 65, 85, 0.7) transparent;
+}
+
+/* Micro-animations */
 @keyframes audio-wave {
   0%, 100% {
-    transform: scaleY(0.3);
+    transform: scaleY(0.25);
   }
   50% {
     transform: scaleY(1);
@@ -47,4 +123,19 @@
 
 .animate-audio-wave {
   animation: audio-wave 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
