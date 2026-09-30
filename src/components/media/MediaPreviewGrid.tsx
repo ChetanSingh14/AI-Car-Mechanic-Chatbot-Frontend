@@ -4,7 +4,7 @@
 import React from 'react';
 import { MediaAttachment } from '../../types';
 import { Image as ImageIcon, Music, Video, X, Eye } from 'lucide-react';
-import { formatFileSize } from '../../lib/utils';
+import { formatFileSize, normalizeMediaUrl } from '../../lib/utils';
 
 interface MediaPreviewGridProps {
   attachments: MediaAttachment[];
@@ -38,11 +38,12 @@ export const MediaPreviewGrid: React.FC<MediaPreviewGridProps> = ({
             >
               {isImage && media.file_url ? (
                 <img
-                  src={media.file_url}
+                  src={normalizeMediaUrl(media.file_url)}
                   alt={media.original_name}
                   className="h-full w-full object-cover"
                 />
               ) : isAudio ? (
+
                 <Music className="h-4 w-4" />
               ) : isVideo ? (
                 <Video className="h-4 w-4" />

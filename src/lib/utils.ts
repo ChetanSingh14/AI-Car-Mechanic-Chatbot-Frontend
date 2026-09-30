@@ -59,6 +59,22 @@ export function detectFileType(file: File): FileType {
   return 'other';
 }
 
+/**
+ * Normalizes media URLs to use same-origin HTTPS proxy when running in production
+ * to prevent browser Mixed Content blocking on HTTP media files.
+ */
+export function normalizeMediaUrl(url?: string): string {
+  if (!url) return '';
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  if (url.includes('/media/')) {
+    return url.substring(url.indexOf('/media/'));
+  }
+  return url;
+}
+
+
 export function validateMediaFile(file: File): { valid: boolean; error?: string } {
   const maxSizeMB = 50;
   const maxSizeBytes = maxSizeMB * 1024 * 1024;

@@ -4,7 +4,7 @@
 import React, { useState, memo } from 'react';
 import { Message, MediaAttachment } from '../../types';
 import { Wrench, User, Cpu, Copy, Check, Paperclip, Music, Video, Image as ImageIcon, Maximize2 } from 'lucide-react';
-import { formatDate } from '../../lib/utils';
+import { formatDate, normalizeMediaUrl } from '../../lib/utils';
 import { useChat } from '../../hooks/useChat';
 
 interface MessageBubbleProps {
@@ -109,7 +109,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
                     <div className="space-y-1">
                       <div className="relative h-24 w-36 sm:h-32 sm:w-44 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
                         <img
-                          src={media.file_url}
+                          src={normalizeMediaUrl(media.file_url)}
                           alt={media.original_name}
                           className="h-full w-full object-cover rounded-lg"
                         />
@@ -136,7 +136,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
                         <audio
                           controls
                           className="h-7 w-full rounded-md"
-                          src={media.file_url}
+                          src={normalizeMediaUrl(media.file_url)}
                           onClick={(e) => e.stopPropagation()}
                         >
                           Audio not supported.
@@ -149,7 +149,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
                     <div className="space-y-1">
                       <div className="relative h-24 w-36 sm:h-32 sm:w-44 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
                         <video
-                          src={media.file_url}
+                          src={normalizeMediaUrl(media.file_url)}
                           className="h-full w-full object-cover rounded-lg"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -188,3 +188,4 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
 });
 
 MessageBubble.displayName = 'MessageBubble';
+

@@ -4,7 +4,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useChat } from '../../hooks/useChat';
 import { X, Download, Image as ImageIcon, Music, Video, Sparkles } from 'lucide-react';
-import { formatFileSize, formatDate } from '../../lib/utils';
+import { formatFileSize, formatDate, normalizeMediaUrl } from '../../lib/utils';
 
 export const MediaLightboxModal: React.FC = () => {
   const { activeLightboxMedia, closeLightbox } = useChat();
@@ -25,6 +25,7 @@ export const MediaLightboxModal: React.FC = () => {
   const isImage = activeLightboxMedia.file_type === 'image';
   const isAudio = activeLightboxMedia.file_type === 'audio';
   const isVideo = activeLightboxMedia.file_type === 'video';
+  const safeFileUrl = normalizeMediaUrl(activeLightboxMedia.file_url);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 dark:bg-slate-950/90 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -55,9 +56,9 @@ export const MediaLightboxModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {activeLightboxMedia.file_url && (
+            {safeFileUrl && (
               <a
-                href={activeLightboxMedia.file_url}
+                href={safeFileUrl}
                 download={activeLightboxMedia.original_name}
                 target="_blank"
                 rel="noreferrer"
@@ -82,7 +83,7 @@ export const MediaLightboxModal: React.FC = () => {
           {isImage && (
             <div className="relative max-h-[60vh] max-w-full overflow-hidden rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md">
               <img
-                src={activeLightboxMedia.file_url}
+                src={safeFileUrl}
                 alt={activeLightboxMedia.original_name}
                 className="max-h-[60vh] max-w-full object-contain rounded-xl sm:rounded-2xl"
               />
@@ -103,7 +104,7 @@ export const MediaLightboxModal: React.FC = () => {
                 controls
                 autoPlay
                 className="w-full rounded-xl"
-                src={activeLightboxMedia.file_url}
+                src={safeFileUrl}
               >
                 Your browser does not support audio playback.
               </audio>
@@ -116,7 +117,7 @@ export const MediaLightboxModal: React.FC = () => {
                 controls
                 autoPlay
                 className="max-h-[60vh] max-w-full rounded-xl sm:rounded-2xl"
-                src={activeLightboxMedia.file_url}
+                src={safeFileUrl}
               >
                 Your browser does not support video playback.
               </video>
@@ -138,3 +139,4 @@ export const MediaLightboxModal: React.FC = () => {
     </div>
   );
 };
+

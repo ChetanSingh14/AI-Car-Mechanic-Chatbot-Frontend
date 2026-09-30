@@ -28,6 +28,8 @@ export function getApiBaseUrl(): string {
   return BACKEND_TARGET_URL;
 }
 
+export const BACKEND_SERVER_ORIGIN = BACKEND_TARGET_URL.replace(/\/api\/?$/, '');
+
 /**
  * Universal Server Proxy Handler for Next.js Route Dispatcher:
  * Forwards requests server-to-server to the EC2 backend without CORS/Mixed-Content issues.
@@ -82,6 +84,72 @@ export async function handleBackendProxy(
     );
   }
 }
+
+/**
+ * Universal Media Proxy Handler:
+ * Streams uploaded media files (images/audio/video) from the backend EC2 server over HTTPS.
+ */
+export async function handleMediaProxy(
+  request: Request,
+  pathSegments: string[],
+  queryString: string = ''
+): Promise<Response> {
+  try {
+    const pathStr = (pathSegments || []).join('/');
+    const targetUrl = `${BACKEND_SERVER_ORIGIN}/media/${pathStr}${queryString}`;
+
+    const headers = new Headers();
+    const accept = request.headers.get('accept');
+    if (accept) headers.set('accept', accept);
+
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    const data = await response.arrayBuffer();
+    const resHeaders = new Headers();
+    const resContentType = response.headers.get('content-type');
+    if (resContentType) resHeaders.set('content-type', resContentType);
+    resHeaders.set('cache-control', 'public, max-age=86400');
+
+    return new Response(data, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: resHeaders,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Media proxy error';
+    return new Response(
+      JSON.stringify({ error: { message } }),
+      {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
+  }
+}
+
+/**
+ * Helper to normalize media attachment URLs
+ */
+export function normalizeMediaAttachment(media: MediaAttachment): MediaAttachment {
+  if (!media) return media;
+  const normalize = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+    if (url.includes('/media/')) return url.substring(url.indexOf('/media/'));
+    return url;
+  };
+
+  return {
+    ...media,
+    file_url: normalize(media.file_url),
+    preview_url: media.preview_url ? normalize(media.preview_url) : undefined,
+  };
+}
+
 
 
 /**
@@ -274,6 +342,14 @@ export async function sendChatMessage(params: {
     }
 
     const data = await res.json();
+    if (data.success && data.data) {
+      if (data.data.user_message?.media_attachments) {
+        data.data.user_message.media_attachments = data.data.user_message.media_attachments.map(normalizeMediaAttachment);
+      }
+      if (data.data.assistant_message?.media_attachments) {
+        data.data.assistant_message.media_attachments = data.data.assistant_message.media_attachments.map(normalizeMediaAttachment);
+      }
+    }
     return data;
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Backend connection unavailable';
@@ -347,7 +423,10 @@ export async function uploadMedia(
 
     const data = await res.json();
     if (data.success && data.data) {
-      return data;
+      return {
+        ...data,
+        data: normalizeMediaAttachment(data.data)
+      };
     }
     throw new Error(data.error?.message || 'Server upload rejected');
   } catch (err: unknown) {
@@ -371,6 +450,7 @@ export async function uploadMedia(
     };
   }
 }
+
 
 /**
  * Generate technical diagnosis and cost estimation
@@ -509,7 +589,19 @@ export async function getConversationDetails(conversationId: string): Promise<Ap
   try {
     const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`);
     if (!res.ok) throw new Error(`Not found: ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    if (data.success && data.data) {
+      if (data.data.messages) {
+        data.data.messages = data.data.messages.map((msg: Message) => ({
+          ...msg,
+          media_attachments: (msg.media_attachments || []).map(normalizeMediaAttachment)
+        }));
+      }
+      if (data.data.media_attachments) {
+        data.data.media_attachments = data.data.media_attachments.map(normalizeMediaAttachment);
+      }
+    }
+    return data;
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Failed to fetch conversation history';
     return {
@@ -518,3 +610,4 @@ export async function getConversationDetails(conversationId: string): Promise<Ap
     };
   }
 }
+
