@@ -49,7 +49,7 @@ A modern Next.js automotive troubleshooting and repair dispatch web application.
 ---
 
 ### 🛠️ 5. Automotive Diagnosis & "Book Mechanic" CTA
-- **Technical Diagnosis Card**: Identifies root issue, severity rating (*Low*, *Medium*, *High*, *Critical*), estimated repair cost range, labor hours, and required parts breakdown.
+- **Technical Diagnosis Card**: Identifies root issue, severity rating (*Low*, *Medium*, *High*, *Critical*), recommended automotive repair service, and realistic repair cost ranges.
 - **Multi-Step Booking Flow**:
   1. **Facility Selection**: Choose from ASE certified repair facilities.
   2. **Schedule**: Select preferred service date and morning/afternoon appointment windows.
@@ -106,6 +106,8 @@ frontend/
 │   │   └── utils.ts                  # File validation (4 MB limit), formatters & helpers
 │   └── types/
 │       └── index.ts                  # TypeScript interfaces
+├── tests/
+│   └── client.test.ts        # Automated unit tests for tokens, proxy & 4MB validation
 ├── .env.example
 ├── package.json
 └── README.md
@@ -145,7 +147,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-5. Build for production:
+5. Run Automated Tests:
+```bash
+npm test
+```
+Executes the Vitest test suite verifying client-token privacy isolation, 4 MB payload validation, and same-origin proxy URL resolution.
+
+6. Build for production:
 ```bash
 npm run build
 npm run start
