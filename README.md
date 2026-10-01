@@ -1,106 +1,114 @@
-# 🚗 AutoTech AI - Virtual Automotive Diagnostic & Repair Platform (Frontend)
+# 🚗 AutoTech AI — Virtual Automotive Diagnostic & Repair Platform (Frontend)
 
-An AI automotive troubleshooting and repair dispatch web application built with Next.js and React. AutoTech AI enables vehicle owners to troubleshoot mechanical, electrical, and powertrain issues using multimodal inputs (text, audio recordings, images, video clips), generates technical diagnostic reports with cost estimates, and schedules appointments with certified mechanic facilities.
+A modern Next.js automotive troubleshooting and repair dispatch web application. AutoTech AI enables vehicle owners to troubleshoot mechanical, electrical, and powertrain issues using multimodal inputs (text, audio recordings, images, video clips), generates technical diagnostic reports with cost estimates, and schedules appointments with certified mechanic facilities.
+
+---
 
 ## 🔗 Live Links
-- **Live Frontend**: `https://ai-car-mechanic-chatbot-frontend.vercel.app` (or your Vercel deployment URL)
-- **Backend API**: `http://13.234.4.236/api/`
-- **Interactive API Docs (Swagger)**: `http://13.234.4.236/api/docs/`
-- **ReDoc Documentation**: `http://13.234.4.236/api/redoc/`
+- **[Live Frontend Application](https://ai-car-mechanic-chatbot-frontend.vercel.app)**
+- **[Backend API Base](http://13.234.4.236/api/)**
+- **[Interactive API Docs (Swagger UI)](http://13.234.4.236/api/docs/)**
+- **[OpenAPI Schema (JSON)](http://13.234.4.236/api/schema/)**
+- **[ReDoc Documentation](http://13.234.4.236/api/redoc/)**
+- **[Health Check Endpoint](http://13.234.4.236/api/health/)**
 
 ---
 
 ## 🌟 Key Features
 
-### ☀️ / 🌙 1. Dynamic Light & Dark Mode Engine
-- **Instant Theme Toggle**: Switch seamlessly between **Deep Obsidian Dark Mode** and **Crisp High-Contrast Light Mode** with a single click in the header.
-- **Tailwind CSS v4 Custom Variant**: Integrated `@custom-variant dark` mapping for robust class-based and data-attribute theme switching.
-- **Local Preference Persistence**: Remembers your preferred mode (`autotech_theme_v2`) across sessions with automatic system color-scheme fallback.
-- **Tailored Palettes**: Dark mode features amber glows and slate-950 obsidian glass; light mode delivers clean slate-50 surfaces with high-readability typography.
+### ☀️ / 🌙 1. Light & Dark Mode
+- **Instant Theme Toggle**: Switch seamlessly between Dark Mode and High-Contrast Light Mode with a single click in the header.
+- **Tailwind CSS v4 Integration**: Class-based and data-attribute theme switching.
+- **Local Preference Persistence**: Remembers your preferred mode across browser sessions.
 
 ---
 
-### 📱 2. All-Screen Adaptive Responsiveness (Mobile, Tablet, Desktop, Ultra-Wide)
-- **Fluid `100dvh` Viewport**: Eliminates mobile browser address-bar jumping on iOS Safari and Android Chrome with zero nested scrollbar glitches.
-- **Ultra-Compact Mobile Vehicle Bar**: Takes minimal vertical space on compact screens (~36px height) while providing full vehicle specs, OBD-II scanner launch, and expandable specs form.
-- **Adaptive Diagnostic Symptoms Launchpad**: Responsive symptom chips (brakes, idle vibration, cooling, electrical, A/C, exhaust) that format cleanly on 320px–480px phones without pushing the chat input off screen.
-- **Streamlined Mobile Multimodal Bar**: Adaptive input row where media attachments, microphone audio recorder, auto-growing textarea, and send button fit comfortably without horizontal overflow.
-- **Mobile Slide-Over History Drawer**: Opens as a smooth backdrop-blurred slide-in drawer on mobile with a tap-friendly close button and auto-dismiss on session selection.
-- **Responsive Modals**: All dialogs (Certified Booking Wizard, OBD-II Code Scanner, Booking Reference Lookup, Media Lightbox) utilize responsive constraints (`max-h-[90dvh]`) with internal scrolling.
+### 📱 2. Adaptive Responsiveness
+- **Fluid Viewport**: Optimized layout across mobile phones, tablets, and desktop displays.
+- **Compact Vehicle Bar**: Quick vehicle specs selector and OBD-II scanner launch.
+- **Adaptive Diagnostic Symptoms Launchpad**: One-click symptom chips (brakes, idle vibration, cooling, electrical, A/C, exhaust).
+- **Streamlined Multimodal Input Bar**: Media attachments, microphone audio recorder, auto-growing textarea, and send button.
+- **Mobile Slide-Over History Drawer**: Backdrop-blurred slide-in drawer for session history.
 
 ---
 
 ### 🎙️ 3. Multimodal Diagnostic Chat Interface
-- **Microphone Audio Waveform Recording**: Built with Web Audio API and `MediaRecorder` with real-time waveform visualizer bars to capture abnormal engine knocking, belt squeals, and exhaust rattles.
-- **Visual & Video Telemetry**: Drag-and-drop or select photos of fluid leaks, tire wear, or dashboard warning lights and video clips for inspection.
-- **Media Lightbox**: Full-resolution interactive image zoom, audio player with waveform telemetry, and video playback with download capability.
+- **Microphone Audio Waveform Recording**: Built with Web Audio API and `MediaRecorder` with real-time waveform visualizer to capture engine knocks, belt squeals, and exhaust rattles.
+- **Visual & Video Telemetry**: Upload photos of fluid leaks, tire wear, or dashboard warning lights and video clips (up to 4 MB).
+- **Media Lightbox**: Full-resolution interactive image preview, audio playback, and video inspection.
 - **Deterministic & AI Generation Badges**: Clear visual tags identifying whether insights stem from deterministic diagnostic rules or multimodal AI models.
 
 ---
 
-### 📜 4. Persistent Diagnostic & Conversation History
-- **History Sidebar**: Auto-syncs conversations to local session storage and backend API endpoints.
-- **Live Search Filtering**: Search historical sessions by vehicle make/model, symptoms, or diagnostic issues with instant clear actions.
-- **Lifecycle Status Badges**: Visual indicators (`Active`, `Report Ready`, `Booked`).
-- **Session Switching & Deletion**: Jump between previous car issues or start a new diagnostic session with one tap.
+### 📜 4. Privacy-Isolated Diagnostic History
+- **Client Session Privacy (`X-Client-Token`)**: Automatically generates an anonymous client token in `localStorage`, sent on all API requests to ensure users only access and manage their own chat history and bookings.
+- **History Sidebar**: Auto-syncs conversations with the backend API.
+- **Live Search Filtering**: Search historical sessions by vehicle make/model or symptoms.
+- **Session Management**: Switch between previous diagnostic sessions or delete individual sessions securely.
 
 ---
 
 ### 🛠️ 5. Automotive Diagnosis & "Book Mechanic" CTA
-- **Certified Technical Diagnosis Card**: Identifies root issue, severity meter (`Low`, `Moderate`, `High`, `Critical`), estimated repair cost range, labor hours, required parts breakdown, and 12-Month / 12,000-Mile Warranty certification.
-- **Interactive Multi-Step Booking Flow**:
-  1. **Facility Selection**: Choose from top-rated ASE certified repair facilities with distance and hourly rates.
+- **Technical Diagnosis Card**: Identifies root issue, severity rating (*Low*, *Medium*, *High*, *Critical*), estimated repair cost range, labor hours, and required parts breakdown.
+- **Multi-Step Booking Flow**:
+  1. **Facility Selection**: Choose from ASE certified repair facilities.
   2. **Schedule**: Select preferred service date and morning/afternoon appointment windows.
   3. **Contact Info**: Customer name, phone, email, and special drop-off instructions.
   4. **Confirmation Ticket**: Generates a booking reference with a copy button.
-- **"My Bookings" Drawer & Lookup**: Search appointment status by Booking ID or inspect local active bookings.
+- **"My Bookings" Drawer & Lookup**: Search appointment status by Booking ID or inspect active user bookings.
 
 ---
 
 ### 🚘 6. Dynamic Vehicle Specs & OBD-II Scanner
 - **Vehicle Profile Selector**: Catalog of major vehicle makes, models, model years, and powertrain engines.
-- **OBD-II Fault Code Database**: Searchable database of common trouble codes (`P0300`, `P0420`, `P0171`, `P0128`, `P0455`, `P0700`) with one-click insertion into the AI chat.
+- **OBD-II Fault Code Database**: Searchable database of common trouble codes (`P0300`, `P0420`, `P0171`, `P0128`, `P0455`, `P0700`) with one-click insertion into the chat.
+
+---
 
 ### 🛡️ 7. Same-Origin Reverse Proxy & Mixed-Content Immunity
 - **Next.js Server Proxy Engine**: Automatically routes API calls (`/api/backend/*`) and media files (`/media/*`) through a same-origin server bridge when deployed on HTTPS (e.g., Vercel).
-- **Zero Mixed-Content Errors**: Enables full HTTPS frontend deployments to communicate with plain HTTP AWS EC2 backend servers seamlessly without browser security blocks.
+- **Zero Mixed-Content Errors**: Enables HTTPS frontend deployments to communicate with plain HTTP AWS EC2 backend servers seamlessly without browser security blocks.
 - **Universal Media URL Normalizer**: Normalizes uploaded vehicle inspection photos, recorded audio waveforms, and video clips so they load via secure proxy routes.
-- **Intelligent Offline Fallback Simulator**: If the remote backend is unreachable or offline, the frontend automatically switches to a local deterministic AI diagnosis engine without breaking the UI experience.
+- **Offline Fallback Simulator**: If the remote backend is unreachable, the frontend falls back gracefully with clear diagnostic messages.
 
 ---
 
 ## 🏗️ Folder Structure
 
 ```
-src/
-├── app/
-│   ├── layout.tsx                # Root layout with metadata and font configurations
-│   ├── page.tsx                  # Home page with Provider and AppLayout
-│   ├── globals.css               # Light/Dark design tokens, animations, custom scrollbars
-│   ├── api/
-│   │   └── backend/[...path]/    # Next.js API reverse proxy dispatcher
-│   └── media/[...path]/          # Next.js Media reverse proxy (images, audio, video)
-├── context/
-│   └── ChatContext.tsx           # Centralized single source of truth & Theme state manager
-├── hooks/
-│   ├── useChat.ts                # Custom hook for chat state, actions & theme toggling
-│   └── useAudioRecorder.ts       # MediaRecorder API & real-time waveform visualizer
-├── components/
-│   ├── chat/                     # ChatInterface, MessageList, MessageBubble, ChatInput, QuickPrompts
-│   ├── diagnosis/                # DiagnosisCard (HUD assessment, parts list, CTA)
-│   ├── booking/                  # BookingModal, BookingStatusModal, MyBookingsDrawer
-│   ├── history/                  # HistorySidebar with search & session controls
-│   ├── media/                    # AudioRecorder, MediaPreviewGrid, MediaLightboxModal
-│   ├── vehicle/                  # VehicleSelector, OBDScannerModal
-│   ├── ui/                       # Reusable ToastContainer, Modal, SeverityBadge
-│   └── layout/                   # Header & AppLayout
-├── services/
-│   └── api.ts                    # Single source of truth: API client, media proxy engine & offline fallback
-├── lib/
-│   ├── constants.ts              # Vehicle catalog, OBD-II dataset & mechanic partners
-│   └── utils.ts                  # File validation, time formatters, media URL normalizer & storage helpers
-└── types/
-    └── index.ts                  # Strict TypeScript interfaces with 0 `any`
+frontend/
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx                # Root layout with metadata and font configurations
+│   │   ├── page.tsx                  # Home page with Provider and AppLayout
+│   │   ├── globals.css               # Light/Dark design tokens, animations, custom scrollbars
+│   │   ├── api/
+│   │   │   └── backend/[...path]/    # Next.js API reverse proxy dispatcher
+│   │   └── media/[...path]/          # Next.js Media reverse proxy (images, audio, video)
+│   ├── context/
+│   │   └── ChatContext.tsx           # Chat context & theme state manager
+│   ├── hooks/
+│   │   ├── useChat.ts                # Custom hook for chat state and actions
+│   │   └── useAudioRecorder.ts       # MediaRecorder API & waveform visualizer
+│   ├── components/
+│   │   ├── chat/                     # ChatInterface, MessageList, MessageBubble, ChatInput, QuickPrompts
+│   │   ├── diagnosis/                # DiagnosisCard (assessment, parts list, booking CTA)
+│   │   ├── booking/                  # BookingModal, BookingStatusModal, MyBookingsDrawer
+│   │   ├── history/                  # HistorySidebar with search & session controls
+│   │   ├── media/                    # AudioRecorder, MediaPreviewGrid, MediaLightboxModal
+│   │   ├── vehicle/                  # VehicleSelector, OBDScannerModal
+│   │   ├── ui/                       # Reusable ToastContainer, Modal, SeverityBadge
+│   │   └── layout/                   # Header & AppLayout
+│   ├── services/
+│   │   └── api.ts                    # API client, client token handling, media proxy & error normalizer
+│   ├── lib/
+│   │   ├── constants.ts              # Vehicle catalog, OBD-II dataset & mechanic partners
+│   │   └── utils.ts                  # File validation (4 MB limit), formatters & helpers
+│   └── types/
+│       └── index.ts                  # TypeScript interfaces
+├── .env.example
+├── package.json
+└── README.md
 ```
 
 ---
@@ -124,20 +132,18 @@ cd AI-Car-Mechanic-Chatbot-Frontend
 npm install
 ```
 
-### 3. Configure Environment Variables (Optional):
-Create a `.env.local` file:
-```env
-# Optional: Set custom backend URL (Defaults to local/cloud backend endpoint)
-BACKEND_API_URL=http://localhost:8000/api
+3. Environment Configuration (Optional for local development):
+```bash
+cp .env.example .env.local
 ```
-*(Note: If the backend is not running, AutoTech AI automatically switches to its built-in offline simulation engine so you can test all features smoothly).*
+For local development, the application defaults to `http://localhost:8000/api` automatically.
 
 4. Start development server:
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 5. Build for production:
 ```bash
@@ -151,24 +157,21 @@ npm run start
 
 ### Deploying to Vercel
 1. Import the repository into [Vercel](https://vercel.com).
-2. *(Optional)* Under **Project Settings ➔ Environment Variables**, configure:
-   - `BACKEND_API_URL`: Your backend API endpoint URL (e.g. `http://your-backend-host/api`).
-3. Deploy! Next.js will automatically proxy all API and media calls over HTTPS.
-
-### Production Backend Media Permissions
-To ensure uploaded images/media are readable by Nginx on your Linux production server:
-```bash
-sudo chmod -R 755 /path/to/backend/media
-sudo chown -R ubuntu:www-data /path/to/backend/media
-```
-
+2. Under **Project Settings ➔ Environment Variables**, configure:
+   - `BACKEND_API_URL`: `http://<your-ec2-ip-or-domain>/api`
+   - `NEXT_PUBLIC_API_URL`: `http://<your-ec2-ip-or-domain>/api`
+3. Click **Deploy**. Next.js server proxy handlers route client API requests to the backend server-to-server.
 
 ---
 
 ## 🛠️ Tech Stack
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **Language**: TypeScript (Strict Typing)
-- **Styling**: Tailwind CSS v4, Glassmorphism, Theme Variables
+- **Framework**: Next.js (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS, Glassmorphism, Theme Variables
 - **Icons**: Lucide React
 - **Audio Processing**: Web Audio API & MediaRecorder
 
+---
+
+## 📄 License
+This project is licensed under the MIT License.

@@ -2,14 +2,29 @@ import { ApiResponse, Booking, Conversation, Diagnosis, MediaAttachment, Message
 
 /**
  * Single Source of Truth for AutoTech API Configuration & Endpoints
+ * Defaults to localhost for local development, or reads environment variables for production.
  */
 export const BACKEND_TARGET_URL =
   process.env.BACKEND_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://13.234.4.236/api';
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'http://localhost:8000/api';
 
 export const PROXY_API_PATH = '/api/backend';
+
+/**
+ * Anonymous Client Token generator / reader for browser session privacy isolation.
+ * Stored in localStorage and sent in X-Client-Token header on all API requests.
+ */
+export function getClientToken(): string {
+  if (typeof window === 'undefined') return '';
+  let token = localStorage.getItem('autotech_client_token');
+  if (!token) {
+    token = 'clt_' + Math.random().toString(36).substring(2, 14) + '_' + Date.now().toString(36);
+    localStorage.setItem('autotech_client_token', token);
+  }
+  return token;
+}
 
 /**
  * Dynamic API Base URL resolution:
@@ -31,7 +46,8 @@ export const BACKEND_SERVER_ORIGIN = BACKEND_TARGET_URL.replace(/\/api\/?$/, '')
 
 /**
  * Universal Server Proxy Handler for Next.js Route Dispatcher:
- * Forwards requests server-to-server to the EC2 backend without CORS/Mixed-Content issues.
+ * Forwards requests server-to-server to the backend without CORS/Mixed-Content issues.
+ * Passes along the X-Client-Token header for privacy isolation.
  */
 export async function handleBackendProxy(
   request: Request,
@@ -49,6 +65,10 @@ export async function handleBackendProxy(
     if (contentType) headers.set('content-type', contentType);
     const accept = request.headers.get('accept');
     if (accept) headers.set('accept', accept);
+
+    // Forward privacy client token
+    const clientToken = request.headers.get('x-client-token');
+    if (clientToken) headers.set('x-client-token', clientToken);
 
     let body: BodyInit | null = null;
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -86,7 +106,7 @@ export async function handleBackendProxy(
 
 /**
  * Universal Media Proxy Handler:
- * Streams uploaded media files (images/audio/video) from the backend EC2 server over HTTPS.
+ * Streams uploaded media files (images/audio/video) from the backend server over HTTPS.
  */
 export async function handleMediaProxy(
   request: Request,
@@ -131,21 +151,25 @@ export async function handleMediaProxy(
 }
 
 /**
- * Helper to normalize media attachment URLs
+ * Normalizes media attachment URLs so relative paths point to proper endpoint.
  */
-export function normalizeMediaAttachment(media: MediaAttachment): MediaAttachment {
-  if (!media) return media;
-  const normalize = (url?: string) => {
+export function normalizeMediaAttachment(att: MediaAttachment): MediaAttachment {
+  const normalize = (url?: string): string => {
     if (!url) return '';
     if (url.startsWith('blob:') || url.startsWith('data:')) return url;
-    if (url.includes('/media/')) return url.substring(url.indexOf('/media/'));
+    if (url.includes('/media/')) {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      if (isHttps) {
+        return url.substring(url.indexOf('/media/'));
+      }
+    }
     return url;
   };
 
   return {
-    ...media,
-    file_url: normalize(media.file_url),
-    preview_url: media.preview_url ? normalize(media.preview_url) : undefined,
+    ...att,
+    file_url: normalize(att.file_url),
+    preview_url: normalize(att.preview_url || att.file_url)
   };
 }
 
@@ -159,6 +183,9 @@ export async function checkBackendHealth(): Promise<boolean> {
 
     const res = await fetch(`${getApiBaseUrl()}/health/`, {
       method: 'GET',
+      headers: {
+        'X-Client-Token': getClientToken()
+      },
       signal: controller.signal
     }).catch(() => null);
 
@@ -185,7 +212,7 @@ export async function sendChatMessage(params: {
     car_make: string;
     car_model: string;
     car_year: string;
-    status: string;
+    status: 'active' | 'diagnosed' | 'booked';
     user_message: Message;
     assistant_message: Message;
     is_ai_generated: boolean;
@@ -197,17 +224,22 @@ export async function sendChatMessage(params: {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-    const payload = {
-      ...params,
-      conversation_id: payloadId
-    };
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     const res = await fetch(`${getApiBaseUrl()}/chat/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Token': getClientToken()
+      },
+      body: JSON.stringify({
+        conversation_id: payloadId,
+        message: params.message,
+        car_make: params.car_make,
+        car_model: params.car_model,
+        car_year: params.car_year,
+        media_attachment_ids: params.media_attachment_ids
+      }),
       signal: controller.signal
     });
 
@@ -251,7 +283,7 @@ export async function sendChatMessage(params: {
 }
 
 /**
- * Upload media file
+ * Upload media file (Max 4 MB limit)
  */
 export async function uploadMedia(
   conversationId?: string,
@@ -261,6 +293,17 @@ export async function uploadMedia(
     return {
       success: false,
       error: { code: 'INVALID_FILE', message: 'No file provided for upload.' }
+    };
+  }
+
+  const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+  if (file.size > MAX_SIZE) {
+    return {
+      success: false,
+      error: {
+        code: 'FILE_TOO_LARGE',
+        message: `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 4 MB upload limit.`
+      }
     };
   }
 
@@ -278,11 +321,24 @@ export async function uploadMedia(
 
     const res = await fetch(`${getApiBaseUrl()}/upload/`, {
       method: 'POST',
+      headers: {
+        'X-Client-Token': getClientToken()
+      },
       body: formData,
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
+
+    if (res.status === 413) {
+      return {
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'File payload too large (maximum 4 MB supported). Please choose a smaller file or shorter recording.'
+        }
+      };
+    }
 
     const data = await res.json().catch(() => null);
 
@@ -337,7 +393,10 @@ export async function generateDiagnosis(
 
     const res = await fetch(`${getApiBaseUrl()}/diagnosis/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Token': getClientToken()
+      },
       body: JSON.stringify({ conversation_id: conversationId }),
       signal: controller.signal
     });
@@ -392,7 +451,10 @@ export async function createBooking(params: {
 
     const res = await fetch(`${getApiBaseUrl()}/booking/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Token': getClientToken()
+      },
       body: JSON.stringify(params),
       signal: controller.signal
     });
@@ -430,7 +492,11 @@ export async function createBooking(params: {
  */
 export async function getBookingDetails(bookingId: string): Promise<ApiResponse<Booking>> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/booking/${bookingId}/`);
+    const res = await fetch(`${getApiBaseUrl()}/booking/${bookingId}/`, {
+      headers: {
+        'X-Client-Token': getClientToken()
+      }
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
       return {
@@ -453,7 +519,11 @@ export async function getBookingDetails(bookingId: string): Promise<ApiResponse<
  */
 export async function getConversationDetails(conversationId: string): Promise<ApiResponse<Conversation>> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`);
+    const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`, {
+      headers: {
+        'X-Client-Token': getClientToken()
+      }
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
       return {
@@ -484,11 +554,15 @@ export async function getConversationDetails(conversationId: string): Promise<Ap
 }
 
 /**
- * List all conversations directly from backend Database
+ * List all conversations directly from backend Database for current client token
  */
 export async function listConversations(): Promise<ApiResponse<Conversation[]>> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/conversation/`);
+    const res = await fetch(`${getApiBaseUrl()}/conversation/`, {
+      headers: {
+        'X-Client-Token': getClientToken()
+      }
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
       return {
@@ -512,7 +586,10 @@ export async function listConversations(): Promise<ApiResponse<Conversation[]>> 
 export async function deleteConversation(conversationId: string): Promise<ApiResponse<{ id: string; deleted: boolean }>> {
   try {
     const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        'X-Client-Token': getClientToken()
+      }
     });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
@@ -532,12 +609,16 @@ export async function deleteConversation(conversationId: string): Promise<ApiRes
 }
 
 /**
- * List bookings directly from backend Database
+ * List bookings directly from backend Database for current client token
  */
 export async function listBookings(email?: string): Promise<ApiResponse<Booking[]>> {
   try {
     const query = email ? `?email=${encodeURIComponent(email)}` : '';
-    const res = await fetch(`${getApiBaseUrl()}/booking/${query}`);
+    const res = await fetch(`${getApiBaseUrl()}/booking/${query}`, {
+      headers: {
+        'X-Client-Token': getClientToken()
+      }
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok || !data || data.success === false) {
       return {
@@ -554,4 +635,3 @@ export async function listBookings(email?: string): Promise<ApiResponse<Booking[
     };
   }
 }
-

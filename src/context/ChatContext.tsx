@@ -278,6 +278,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           response.data.assistant_message
         ];
         setMessages(finalMessages);
+        setMediaAttachments([]);
 
         if (response.data.car_make && !vehicle.make) {
           updateVehicle({

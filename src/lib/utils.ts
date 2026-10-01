@@ -76,7 +76,7 @@ export function normalizeMediaUrl(url?: string): string {
 
 
 export function validateMediaFile(file: File): { valid: boolean; error?: string } {
-  const maxSizeMB = 50;
+  const maxSizeMB = 4;
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   if (file.size > maxSizeBytes) {
