@@ -16,6 +16,7 @@ import {
   uploadMedia,
   generateDiagnosis,
   createBooking,
+  getConversationDetails,
   checkBackendHealth
 } from '../services/api';
 import { generateId, safeLocalStorageGet, safeLocalStorageSet } from '../lib/utils';
@@ -41,7 +42,7 @@ interface ChatContextType {
   removeAttachment: (id: string) => void;
   triggerDiagnosis: () => Promise<void>;
   startNewSession: () => void;
-  loadSession: (convId: string) => void;
+  loadSession: (convId: string) => Promise<void>;
   deleteSession: (convId: string) => void;
 
   // History
@@ -95,41 +96,54 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-const INITIAL_WELCOME_MESSAGE: Message = {
+const createInitialWelcomeMessage = (): Message => ({
   id: 'welcome-initial',
   conversation: '',
   sender: 'assistant',
   content: `👋 **Welcome to AutoTech AI Master Diagnostics!**\n\nI am your virtual ASE-Certified Master Automobile Technician. I can inspect and diagnose mechanical, electrical, brake, engine, and transmission issues.\n\n🛠️ **How to get started:**\n- Describe what sounds, warning lights, or handling issues you are experiencing.\n- **Upload photos, record audio/video** of the abnormal noise or engine bay.\n- Click **"Generate Diagnosis"** at any time for certified repair quotes & mechanic booking.`,
-  is_ai_generated: true,
-  created_at: '2025-01-01T00:00:00.000Z'
-};
+  is_ai_generated: false,
+  created_at: new Date().toISOString()
+});
 
 const DEFAULT_VEHICLE: VehicleInfo = {
-  make: 'Honda',
-  model: 'Civic',
-  year: '2019',
-  mileage: '45,000 miles',
-  engine: '1.5L Turbo'
+  make: '',
+  model: '',
+  year: '',
+  mileage: '',
+  engine: ''
 };
 
 const STORAGE_KEYS = {
-  CONVERSATIONS: 'autotech_conversations_v2',
-  ACTIVE_ID: 'autotech_active_id_v2',
-  VEHICLE: 'autotech_vehicle_v2',
-  BOOKINGS: 'autotech_bookings_v2',
-  THEME: 'autotech_theme_v2'
+  CONVERSATIONS: 'autotech_conversations_v3',
+  ACTIVE_ID: 'autotech_active_id_v3',
+  VEHICLE: 'autotech_vehicle_v3',
+  BOOKINGS: 'autotech_bookings_v3',
+  THEME: 'autotech_theme_v3'
 };
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Theme state
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // Theme state initialized from storage
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return safeLocalStorageGet<'dark' | 'light'>(STORAGE_KEYS.THEME, 'dark');
+  });
 
-  // Vehicle state - default for initial render to ensure matching SSR/client HTML
-  const [vehicle, setVehicle] = useState<VehicleInfo>(DEFAULT_VEHICLE);
+  // Vehicle state initialized from storage
+  const [vehicle, setVehicle] = useState<VehicleInfo>(() => {
+    return safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, DEFAULT_VEHICLE);
+  });
+
+  // History & Bookings initialized from storage
+  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>(() => {
+    return safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
+  });
+
+  const [bookings, setBookings] = useState<Booking[]>(() => {
+    return safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, []);
+  });
 
   // Active chat state
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([INITIAL_WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([createInitialWelcomeMessage()]);
   const [mediaAttachments, setMediaAttachments] = useState<MediaAttachment[]>([]);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
 
@@ -138,10 +152,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isUploading, setIsUploading] = useState(false);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // History & Bookings initialized with [] for SSR matching, populated in useEffect
-  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Modals & UI controls
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -171,19 +181,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Load saved state from localStorage after initial client hydration
+  // Synchronize DOM theme on mount & change
   useEffect(() => {
-    const savedVehicle = safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, DEFAULT_VEHICLE);
-    const savedHistory = safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
-    const savedBookings = safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, []);
-    const savedTheme = safeLocalStorageGet<'dark' | 'light'>(STORAGE_KEYS.THEME, 'dark');
-
-    setVehicle(savedVehicle);
-    setConversationsHistory(savedHistory);
-    setBookings(savedBookings);
-    setTheme(savedTheme);
-
-    if (savedTheme === 'dark') {
+    if (theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.documentElement.setAttribute('data-theme', 'dark');
       document.body.classList.add('dark');
@@ -194,23 +194,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.body.classList.remove('dark');
       document.body.setAttribute('data-theme', 'light');
     }
-  }, []);
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const nextTheme = prev === 'dark' ? 'light' : 'dark';
       safeLocalStorageSet(STORAGE_KEYS.THEME, nextTheme);
-      if (nextTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.body.classList.add('dark');
-        document.body.setAttribute('data-theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.body.classList.remove('dark');
-        document.body.setAttribute('data-theme', 'light');
-      }
       return nextTheme;
     });
   }, []);
@@ -290,14 +279,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
-      const currentConvId = conversationId || generateId('conv');
-      if (!conversationId) {
-        setConversationId(currentConvId);
-      }
-
+      // Temporary optimistic user message
       const tempUserMsg: Message = {
         id: generateId('msg-user-temp'),
-        conversation: currentConvId,
+        conversation: conversationId || '',
         sender: 'user',
         content: trimmed,
         is_ai_generated: false,
@@ -311,7 +296,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
 
       const response = await sendChatMessage({
-        conversation_id: currentConvId,
+        conversation_id: conversationId || undefined,
         message: trimmed,
         car_make: vehicle.make,
         car_model: vehicle.model,
@@ -322,13 +307,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
 
       if (response.success && response.data) {
+        // Critical Bug Fix: Save the authoritative server conversation ID
+        const serverConvId = response.data.conversation_id;
+        setConversationId(serverConvId);
+
         const finalMessages = [
           ...updatedMessages.filter((m) => m.id !== tempUserMsg.id),
           response.data.user_message,
           response.data.assistant_message
         ];
         setMessages(finalMessages);
-        syncActiveConversationToHistory(currentConvId, finalMessages, mediaAttachments, diagnosis);
+
+        // Update vehicle state if backend detected a car make
+        if (response.data.car_make && !vehicle.make) {
+          updateVehicle({
+            make: response.data.car_make,
+            model: response.data.car_model || vehicle.model,
+            year: response.data.car_year || vehicle.year
+          });
+        }
+
+        syncActiveConversationToHistory(serverConvId, finalMessages, mediaAttachments, diagnosis);
       } else {
         const errMsg = response.error?.message || 'Failed to communicate with diagnostic server.';
         setError(errMsg);
@@ -339,22 +338,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     },
-    [conversationId, isLoading, mediaAttachments, messages, vehicle, diagnosis, syncActiveConversationToHistory, addToast]
+    [conversationId, isLoading, mediaAttachments, messages, vehicle, diagnosis, syncActiveConversationToHistory, updateVehicle, addToast]
   );
 
   // Upload Media
   const uploadFile = useCallback(
     async (file: File): Promise<MediaAttachment | null> => {
-      let currentConvId = conversationId;
-      if (!currentConvId) {
-        currentConvId = generateId('conv');
-        setConversationId(currentConvId);
-      }
-
       setIsUploading(true);
       setError(null);
 
-      const response = await uploadMedia(currentConvId, file);
+      const response = await uploadMedia(conversationId || undefined, file);
       setIsUploading(false);
 
       if (response.success && response.data) {
@@ -362,10 +355,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newAttachments = [...mediaAttachments, newAttachment];
         setMediaAttachments(newAttachments);
 
+        // Critical Bug Fix: Save server conversation ID if newly created on upload
+        const serverConvId = newAttachment.conversation ? String(newAttachment.conversation) : conversationId;
+        if (serverConvId && serverConvId !== conversationId) {
+          setConversationId(serverConvId);
+        }
+
+        const effectiveConvId = serverConvId || conversationId || '';
+
         // System notification message
         const sysMsg: Message = {
           id: generateId('sys-msg'),
-          conversation: currentConvId,
+          conversation: effectiveConvId,
           sender: 'system',
           content: `📎 Attached diagnostic ${newAttachment.file_type.toUpperCase()}: ${newAttachment.original_name}`,
           is_ai_generated: false,
@@ -375,12 +376,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newMessages = [...messages, sysMsg];
         setMessages(newMessages);
 
-        syncActiveConversationToHistory(currentConvId, newMessages, newAttachments, diagnosis);
+        if (effectiveConvId) {
+          syncActiveConversationToHistory(effectiveConvId, newMessages, newAttachments, diagnosis);
+        }
 
         addToast({
           type: 'success',
           title: 'Media Attached',
-          message: `${file.name} uploaded and queued for visual/audio analysis.`
+          message: `${file.name} uploaded and queued for diagnostic inspection.`
         });
 
         return newAttachment;
@@ -404,36 +407,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Trigger Diagnosis
   const triggerDiagnosis = useCallback(async () => {
-    if (messages.length < 2) {
+    if (!conversationId || conversationId.startsWith('conv-')) {
       addToast({
         type: 'warning',
-        title: 'More Context Needed',
+        title: 'Active Session Required',
+        message: 'Please send a message describing your vehicle issues before requesting a diagnosis.'
+      });
+      return;
+    }
+
+    if (messages.filter((m) => m.sender === 'user').length === 0) {
+      addToast({
+        type: 'warning',
+        title: 'More Details Needed',
         message: 'Please describe the car symptoms first before generating a technical diagnosis.'
       });
       return;
     }
 
-    const currentConvId = conversationId || generateId('conv');
-    if (!conversationId) setConversationId(currentConvId);
-
     setIsDiagnosing(true);
     setError(null);
 
-    const userMessagesText = messages
-      .filter((m) => m.sender === 'user')
-      .map((m) => m.content)
-      .join(' | ');
-
-    const vehString = `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.engine || ''})`;
-
-    const response = await generateDiagnosis(currentConvId, userMessagesText, vehString);
+    const response = await generateDiagnosis(conversationId);
     setIsDiagnosing(false);
 
     if (response.success && response.data) {
       const diag = response.data;
       setDiagnosis(diag);
 
-      syncActiveConversationToHistory(currentConvId, messages, mediaAttachments, diag, 'diagnosed');
+      syncActiveConversationToHistory(conversationId, messages, mediaAttachments, diag, 'diagnosed');
 
       addToast({
         type: 'success',
@@ -449,18 +451,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         message: errMsg
       });
     }
-  }, [conversationId, messages, mediaAttachments, vehicle, syncActiveConversationToHistory, addToast]);
+  }, [conversationId, messages, mediaAttachments, syncActiveConversationToHistory, addToast]);
 
   // Start New Session
   const startNewSession = useCallback(() => {
     setConversationId(null);
-    setMessages([
-      {
-        ...INITIAL_WELCOME_MESSAGE,
-        id: generateId('welcome'),
-        created_at: new Date().toISOString()
-      }
-    ]);
+    setMessages([createInitialWelcomeMessage()]);
     setMediaAttachments([]);
     setDiagnosis(null);
     setError(null);
@@ -473,33 +469,55 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [addToast]);
 
-  // Load Session from History
+  // Load Session from History (synchronizing with backend GET /api/conversation/{id}/)
   const loadSession = useCallback(
-    (convId: string) => {
-      const found = conversationsHistory.find((c) => c.id === convId);
-      if (!found) return;
+    async (convId: string) => {
+      const foundLocal = conversationsHistory.find((c) => c.id === convId);
 
-      setConversationId(found.id);
-      setMessages(found.messages && found.messages.length > 0 ? found.messages : [INITIAL_WELCOME_MESSAGE]);
-      setMediaAttachments(found.media_attachments || []);
-      setDiagnosis(found.diagnosis || null);
-      setError(null);
-
-      if (found.car_make) {
-        setVehicle((prev) => ({
-          ...prev,
-          make: found.car_make || prev.make,
-          model: found.car_model || prev.model,
-          year: found.car_year || prev.year
-        }));
+      setConversationId(convId);
+      if (foundLocal) {
+        setMessages(foundLocal.messages && foundLocal.messages.length > 0 ? foundLocal.messages : [createInitialWelcomeMessage()]);
+        setMediaAttachments(foundLocal.media_attachments || []);
+        setDiagnosis(foundLocal.diagnosis || null);
+        if (foundLocal.car_make) {
+          setVehicle((prev) => ({
+            ...prev,
+            make: foundLocal.car_make || prev.make,
+            model: foundLocal.car_model || prev.model,
+            year: foundLocal.car_year || prev.year
+          }));
+        }
       }
-
+      setError(null);
       setIsSidebarOpen(false);
+
+      // Fetch authoritative state from backend
+      const serverRes = await getConversationDetails(convId);
+      if (serverRes.success && serverRes.data) {
+        const sData = serverRes.data;
+        if (sData.messages && sData.messages.length > 0) {
+          setMessages(sData.messages);
+        }
+        if (sData.media_attachments) {
+          setMediaAttachments(sData.media_attachments);
+        }
+        if (sData.diagnosis) {
+          setDiagnosis(sData.diagnosis);
+        }
+        if (sData.car_make) {
+          setVehicle((prev) => ({
+            ...prev,
+            make: sData.car_make || prev.make,
+            model: sData.car_model || prev.model,
+            year: sData.car_year || prev.year
+          }));
+        }
+      }
 
       addToast({
         type: 'info',
         title: 'Session Loaded',
-        message: `Loaded diagnostic session "${found.title || found.id}"`
+        message: `Loaded diagnostic session.`
       });
     },
     [conversationsHistory, addToast]
@@ -570,7 +588,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         preferred_time: params.time,
         notes: params.notes,
         mechanic_id: params.mechanicId,
-        mechanic_name: params.mechanicName,
+        mechanic_name: params.mechanicName || 'Precision Master Automotive',
         service_type: targetDiag.recommended_service,
         estimated_cost: targetDiag.estimated_cost
       });
@@ -578,7 +596,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.success && response.data) {
         const newBooking = response.data;
         newBooking.diagnosis_detail = targetDiag;
-        newBooking.vehicle_info = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+        newBooking.vehicle_info = vehicle.make
+          ? `${vehicle.year || ''} ${vehicle.make} ${vehicle.model || ''}`.trim()
+          : 'Customer Vehicle';
 
         setBookings((prev) => {
           const updated = [newBooking, ...prev];

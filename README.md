@@ -1,6 +1,12 @@
 # 🚗 AutoTech AI - Virtual Automotive Diagnostic & Repair Platform (Frontend)
 
-An enterprise-grade, senior-architected AI automotive troubleshooting and repair dispatch web application. AutoTech AI enables vehicle owners to diagnose mechanical, electrical, and powertrain issues using multimodal inputs (text, real-time audio waveform recordings, images, and video clips), generates certified technical diagnostic reports with cost estimates, and seamlessly schedules appointments with certified mechanic facilities.
+An AI automotive troubleshooting and repair dispatch web application built with Next.js and React. AutoTech AI enables vehicle owners to troubleshoot mechanical, electrical, and powertrain issues using multimodal inputs (text, audio recordings, images, video clips), generates technical diagnostic reports with cost estimates, and schedules appointments with certified mechanic facilities.
+
+## 🔗 Live Links
+- **Live Frontend**: `https://ai-car-mechanic-chatbot-frontend.vercel.app` (or your Vercel deployment URL)
+- **Backend API**: `http://13.234.4.236/api/`
+- **Interactive API Docs (Swagger)**: `http://13.234.4.236/api/docs/`
+- **ReDoc Documentation**: `http://13.234.4.236/api/redoc/`
 
 ---
 

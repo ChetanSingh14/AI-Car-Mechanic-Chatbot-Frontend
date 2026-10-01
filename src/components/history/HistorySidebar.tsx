@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useSyncExternalStore } from 'react';
 import { useChat } from '../../hooks/useChat';
 import {
   Plus,
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { formatRelativeTime } from '../../lib/utils';
 
+const emptySubscribe = () => () => {};
+
 export const HistorySidebar: React.FC = () => {
   const {
     conversationsHistory,
@@ -27,11 +29,13 @@ export const HistorySidebar: React.FC = () => {
   } = useChat();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  // Use standard useSyncExternalStore to detect client hydration without calling setState inside an effect
+  const isMounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   const filteredHistory = useMemo(() => {
     if (!isMounted) return [];
@@ -58,47 +62,56 @@ export const HistorySidebar: React.FC = () => {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[82vw] max-w-[300px] sm:w-80 flex-col border-r border-slate-200 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/95 p-3 sm:p-4 backdrop-blur-2xl transition-transform duration-300 md:static md:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:shadow-none'
+        className={`fixed md:static inset-y-0 left-0 z-50 flex h-full w-72 sm:w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        {/* Top Header & New Diagnostic Button */}
-        <div className="space-y-2.5 pb-2.5 border-b border-slate-200 dark:border-slate-800/80 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-              <History className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-              <span className="text-xs font-bold uppercase tracking-wider">Diagnostic History</span>
+        {/* Sidebar Header */}
+        <div className="flex h-14 sm:h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800/80 px-3.5 sm:px-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <History className="h-4 w-4" />
             </div>
-
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 md:hidden transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="h-4.5 w-4.5" />
-            </button>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Diagnostic History
+              </h2>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                {conversationsHistory.length} saved session{conversationsHistory.length === 1 ? '' : 's'}
+              </p>
+            </div>
           </div>
 
           <button
-            onClick={() => {
-              startNewSession();
-              setIsSidebarOpen(false);
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 p-2 sm:p-2.5 text-xs font-bold text-slate-950 shadow-xs shadow-amber-500/15 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            onClick={() => setIsSidebarOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden"
+            aria-label="Close History Sidebar"
           >
-            <Plus className="h-4 w-4 stroke-[3]" />
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Action Button: New Session */}
+        <div className="p-3">
+          <button
+            onClick={startNewSession}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-3.5 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-amber-500/20 hover:from-amber-400 hover:to-amber-500 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          >
+            <Plus className="h-4 w-4" />
             <span>New Diagnostic Session</span>
           </button>
+        </div>
 
-          {/* Search Box */}
+        {/* Search Bar */}
+        <div className="px-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search previous issues / cars..."
+              placeholder="Search diagnoses, vehicle..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 pl-8 pr-7 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:border-amber-500/60 focus:outline-none transition-all"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 py-1.5 pl-8 pr-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
             {searchQuery && (
               <button
@@ -111,95 +124,103 @@ export const HistorySidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* Sessions List */}
-        <div className="flex-1 overflow-y-auto py-2.5 space-y-2 pr-1 min-h-0">
-          {!isMounted || filteredHistory.length === 0 ? (
-            <div className="text-center py-8 px-2 space-y-1.5">
-              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500">
-                <MessageSquare className="h-4 w-4" />
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 font-semibold">No sessions found</p>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 max-w-[180px] mx-auto">
-                {searchQuery ? 'Try another keyword.' : 'Your troubleshooting chats will be automatically saved.'}
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto px-2.5 py-1 space-y-1.5 custom-scrollbar">
+          {!isMounted ? (
+            <div className="flex h-32 items-center justify-center text-xs text-slate-400">
+              Loading saved history...
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div className="flex h-44 flex-col items-center justify-center text-center p-4 text-slate-400">
+              <MessageSquare className="h-8 w-8 mb-2 opacity-30" />
+              <p className="text-xs font-medium">No diagnostic history found</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {searchQuery ? 'Try a different search query' : 'Your completed troubleshoot sessions will appear here'}
               </p>
             </div>
           ) : (
             filteredHistory.map((conv) => {
-              const isActive = conv.id === conversationId;
+              const isActive = conversationId === conv.id;
               const hasDiag = !!conv.diagnosis;
               const isBooked = conv.status === 'booked';
 
               return (
                 <div
                   key={conv.id}
-                  onClick={() => {
-                    loadSession(conv.id);
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`group relative cursor-pointer rounded-xl sm:rounded-2xl border p-2.5 sm:p-3 transition-all ${
+                  onClick={() => loadSession(conv.id)}
+                  className={`group relative flex cursor-pointer flex-col rounded-xl border p-2.5 text-left transition-all ${
                     isActive
-                      ? 'border-amber-500/80 bg-amber-500/10 shadow-xs'
-                      : 'border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-900/80'
+                      ? 'border-amber-500/60 bg-amber-500/10 dark:bg-amber-500/15 shadow-sm'
+                      : 'border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                        {conv.title || 'Diagnostic Session'}
-                      </p>
-
-                      {/* Vehicle tag */}
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                        <Car className="h-3 w-3 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="truncate">
-                          {conv.car_make ? `${conv.car_year || ''} ${conv.car_make} ${conv.car_model || ''}`.trim() : 'Generic Vehicle'}
-                        </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] ${
+                          isBooked
+                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                            : hasDiag
+                            ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {isBooked ? (
+                          <CheckCircle2 className="h-3 w-3" />
+                        ) : hasDiag ? (
+                          <Sparkles className="h-3 w-3" />
+                        ) : (
+                          <Car className="h-3 w-3" />
+                        )}
                       </div>
+
+                      <h3 className="truncate text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {conv.title || 'Diagnostic Session'}
+                      </h3>
                     </div>
 
-                    {/* Delete session button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteSession(conv.id);
                       }}
-                      className="opacity-70 group-hover:opacity-100 rounded-lg p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-rose-500 transition-all"
-                      title="Delete this session"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-opacity"
+                      title="Delete session"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
 
-                  {/* Status Pills */}
-                  <div className="mt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800/60 pt-1.5 text-[10px]">
-                    <span className="text-slate-400 dark:text-slate-500" suppressHydrationWarning>
-                      {formatRelativeTime(conv.updated_at || conv.created_at)}
+                  {/* Vehicle Tag & Status Badge */}
+                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                    <span className="truncate max-w-[130px]">
+                      {conv.car_make
+                        ? `${conv.car_year || ''} ${conv.car_make} ${conv.car_model || ''}`.trim()
+                        : 'Unspecified vehicle'}
                     </span>
 
-                    {isBooked ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.2 font-bold text-emerald-600 dark:text-emerald-400 text-[9px]">
-                        <CheckCircle2 className="h-2.5 w-2.5" /> Booked
-                      </span>
-                    ) : hasDiag ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.2 font-bold text-amber-600 dark:text-amber-400 text-[9px]">
-                        <Sparkles className="h-2.5 w-2.5" /> Diagnosed
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-200 dark:bg-slate-800/80 px-1.5 py-0.2 text-slate-600 dark:text-slate-400 text-[9px]">
-                        Active
-                      </span>
-                    )}
+                    <span className="shrink-0" suppressHydrationWarning>
+                      {formatRelativeTime(conv.updated_at || conv.created_at)}
+                    </span>
                   </div>
+
+                  {/* Diagnosis snippet badge if exists */}
+                  {conv.diagnosis && (
+                    <div className="mt-1 flex items-center gap-1 text-[9px] font-semibold text-purple-600 dark:text-purple-400 truncate">
+                      <span className="truncate">🔧 {conv.diagnosis.issue_title}</span>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
         </div>
 
-        {/* Footer info badge */}
-        <div className="border-t border-slate-200 dark:border-slate-800/80 pt-2 text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-between shrink-0">
-          <span>AutoTech Diagnostic Bay</span>
-          <span className="text-amber-600 dark:text-amber-400 font-medium">ASE Certified AI</span>
+        {/* Sidebar Footer */}
+        <div className="border-t border-slate-200 dark:border-slate-800/80 p-3 text-center">
+          <p className="text-[10px] text-slate-400">
+            AutoTech Master Diagnostic Assistant
+          </p>
         </div>
       </aside>
     </>

@@ -4,6 +4,7 @@ export type FileType = 'image' | 'audio' | 'video' | 'other';
 
 export interface MediaAttachment {
   id: string;
+  conversation?: string;
   file?: string;
   file_url: string;
   file_type: FileType;

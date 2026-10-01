@@ -12,6 +12,81 @@ interface MessageBubbleProps {
   mediaAttachments?: MediaAttachment[];
 }
 
+/**
+ * Format markdown text inline (bold, code, bullet points, headers) safely
+ */
+const FormattedMarkdownText: React.FC<{ content: string; isUser: boolean }> = ({ content, isUser }) => {
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-1.5 leading-relaxed break-words select-text">
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={lIdx} className="h-1" />;
+        }
+
+        // Check if line is a bullet item
+        const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ');
+        const lineContent = isBullet ? trimmed.replace(/^[-*•]\s+/, '') : line;
+
+        // Parse inline formatting: **bold**, `code`, [OBD-CODE]
+        const parseInline = (text: string) => {
+          const parts: React.ReactNode[] = [];
+          // Regex to match **bold** or `code` or [P0300]
+          const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[[PBCU]\d{4}\])/g;
+          let lastIndex = 0;
+          let match: RegExpExecArray | null;
+
+          while ((match = regex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+              parts.push(text.substring(lastIndex, match.index));
+            }
+            const matchText = match[0];
+            if (matchText.startsWith('**') && matchText.endsWith('**')) {
+              parts.push(
+                <strong key={`${match.index}-b`} className={isUser ? 'font-bold' : 'font-bold text-slate-900 dark:text-amber-400'}>
+                  {matchText.slice(2, -2)}
+                </strong>
+              );
+            } else if (matchText.startsWith('`') && matchText.endsWith('`')) {
+              parts.push(
+                <code key={`${match.index}-c`} className="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-800 font-mono text-[11px] text-amber-600 dark:text-amber-300">
+                  {matchText.slice(1, -1)}
+                </code>
+              );
+            } else if (matchText.startsWith('[') && matchText.endsWith(']')) {
+              parts.push(
+                <span key={`${match.index}-obd`} className="inline-flex items-center px-1.5 py-0.5 rounded-md font-mono text-[11px] font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300">
+                  {matchText}
+                </span>
+              );
+            }
+            lastIndex = regex.lastIndex;
+          }
+
+          if (lastIndex < text.length) {
+            parts.push(text.substring(lastIndex));
+          }
+
+          return parts;
+        };
+
+        if (isBullet) {
+          return (
+            <div key={lIdx} className="flex items-start gap-2 pl-1.5 my-0.5">
+              <span className={`h-1.5 w-1.5 rounded-full mt-2 shrink-0 ${isUser ? 'bg-slate-950' : 'bg-amber-500'}`} />
+              <div className="flex-1">{parseInline(lineContent)}</div>
+            </div>
+          );
+        }
+
+        return <div key={lIdx}>{parseInline(line)}</div>;
+      })}
+    </div>
+  );
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, mediaAttachments = [] }) => {
   const { openLightbox } = useChat();
   const [copied, setCopied] = useState(false);
@@ -91,10 +166,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
               : 'bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800/90 text-slate-900 dark:text-slate-100 rounded-tl-xs backdrop-blur-md'
           }`}
         >
-          {/* Content */}
-          <div className="whitespace-pre-wrap space-y-1 font-normal select-text break-words">
-            {message.content}
-          </div>
+          {/* Formatted Markdown Content */}
+          <FormattedMarkdownText content={message.content} isUser={isUser} />
 
           {/* Attached Media Cards if applicable */}
           {attachedMedia && attachedMedia.length > 0 && (
@@ -118,51 +191,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
                         </div>
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-300 px-0.5 truncate max-w-[140px]">
-                        <ImageIcon className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0" />
+                        <ImageIcon className="h-3 w-3 text-amber-500 shrink-0" />
                         <span className="truncate">{media.original_name}</span>
                       </div>
                     </div>
                   )}
 
                   {media.file_type === 'audio' && (
-                    <div className="space-y-1.5 p-1 min-w-[160px] sm:min-w-[200px]">
-                      <div className="flex items-center justify-between text-slate-800 dark:text-slate-200">
-                        <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
-                          <Music className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                          <span className="truncate max-w-[130px]">{media.original_name}</span>
-                        </div>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 max-w-full">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-slate-950 shrink-0">
+                        <Music className="h-3.5 w-3.5" />
                       </div>
-                      {media.file_url && (
-                        <audio
-                          controls
-                          className="h-7 w-full rounded-md"
-                          src={normalizeMediaUrl(media.file_url)}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Audio not supported.
-                        </audio>
-                      )}
+                      <div className="min-w-0 pr-1">
+                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
+                          {media.original_name}
+                        </p>
+                        <p className="text-[9px] text-amber-600 dark:text-amber-400">Click to listen</p>
+                      </div>
                     </div>
                   )}
 
                   {media.file_type === 'video' && (
-                    <div className="space-y-1">
-                      <div className="relative h-24 w-36 sm:h-32 sm:w-44 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
-                        <video
-                          src={normalizeMediaUrl(media.file_url)}
-                          className="h-full w-full object-cover rounded-lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openLightbox(media);
-                          }}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <Video className="h-5 w-5 text-white/80" />
-                        </div>
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 max-w-full">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-500 text-slate-950 shrink-0">
+                        <Video className="h-3.5 w-3.5" />
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-slate-600 dark:text-slate-300 px-0.5 truncate max-w-[140px]">
-                        <Video className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0" />
-                        <span className="truncate">{media.original_name}</span>
+                      <div className="min-w-0 pr-1">
+                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
+                          {media.original_name}
+                        </p>
+                        <p className="text-[9px] text-cyan-600 dark:text-cyan-400">Click to inspect video</p>
                       </div>
                     </div>
                   )}
@@ -171,16 +229,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
             </div>
           )}
 
-          {/* Copy Button */}
-          {!isUser && (
-            <button
-              onClick={handleCopy}
-              className="absolute bottom-1.5 right-1.5 rounded-lg p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all active:scale-95"
-              title="Copy message"
-            >
-              {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-            </button>
-          )}
+          {/* Quick Copy Button */}
+          <button
+            onClick={handleCopy}
+            className={`absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded-md transition-all ${
+              isUser
+                ? 'hover:bg-amber-600/30 text-slate-950'
+                : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+            }`}
+            title="Copy response"
+          >
+            {copied ? <Check className="h-3 w-3 stroke-[3]" /> : <Copy className="h-3 w-3" />}
+          </button>
         </div>
       </div>
     </div>
@@ -188,4 +248,3 @@ export const MessageBubble: React.FC<MessageBubbleProps> = memo(({ message, medi
 });
 
 MessageBubble.displayName = 'MessageBubble';
-
