@@ -5,7 +5,13 @@ import { useChat } from '../../hooks/useChat';
 import { X, Calendar, Wrench, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 
 export const MyBookingsDrawer: React.FC = () => {
-  const { isMyBookingsOpen, setIsMyBookingsOpen, bookings } = useChat();
+  const { isMyBookingsOpen, setIsMyBookingsOpen, bookings, refreshBookings } = useChat();
+
+  React.useEffect(() => {
+    if (isMyBookingsOpen) {
+      refreshBookings();
+    }
+  }, [isMyBookingsOpen, refreshBookings]);
 
   if (!isMyBookingsOpen) return null;
 

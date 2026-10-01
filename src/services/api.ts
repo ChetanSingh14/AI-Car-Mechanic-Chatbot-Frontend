@@ -482,3 +482,76 @@ export async function getConversationDetails(conversationId: string): Promise<Ap
     };
   }
 }
+
+/**
+ * List all conversations directly from backend Database
+ */
+export async function listConversations(): Promise<ApiResponse<Conversation[]>> {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/conversation/`);
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success === false) {
+      return {
+        success: false,
+        error: { code: 'FETCH_ERROR', message: data?.error?.message || 'Failed to list conversations from database' }
+      };
+    }
+    return data;
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to list conversations';
+    return {
+      success: false,
+      error: { code: 'NETWORK_ERROR', message: errorMessage }
+    };
+  }
+}
+
+/**
+ * Delete conversation from backend Database
+ */
+export async function deleteConversation(conversationId: string): Promise<ApiResponse<{ id: string; deleted: boolean }>> {
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/conversation/${conversationId}/`, {
+      method: 'DELETE'
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success === false) {
+      return {
+        success: false,
+        error: { code: 'DELETE_ERROR', message: data?.error?.message || 'Failed to delete conversation' }
+      };
+    }
+    return data;
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Network error deleting conversation';
+    return {
+      success: false,
+      error: { code: 'NETWORK_ERROR', message: errorMessage }
+    };
+  }
+}
+
+/**
+ * List bookings directly from backend Database
+ */
+export async function listBookings(email?: string): Promise<ApiResponse<Booking[]>> {
+  try {
+    const query = email ? `?email=${encodeURIComponent(email)}` : '';
+    const res = await fetch(`${getApiBaseUrl()}/booking/${query}`);
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || data.success === false) {
+      return {
+        success: false,
+        error: { code: 'FETCH_ERROR', message: data?.error?.message || 'Failed to list bookings from database' }
+      };
+    }
+    return data;
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to list bookings';
+    return {
+      success: false,
+      error: { code: 'NETWORK_ERROR', message: errorMessage }
+    };
+  }
+}
+

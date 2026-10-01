@@ -17,6 +17,9 @@ import {
   generateDiagnosis,
   createBooking,
   getConversationDetails,
+  listConversations,
+  deleteConversation,
+  listBookings,
   checkBackendHealth
 } from '../services/api';
 import { generateId, safeLocalStorageGet, safeLocalStorageSet } from '../lib/utils';
@@ -43,7 +46,8 @@ interface ChatContextType {
   triggerDiagnosis: () => Promise<void>;
   startNewSession: () => void;
   loadSession: (convId: string) => Promise<void>;
-  deleteSession: (convId: string) => void;
+  deleteSession: (convId: string) => Promise<void>;
+  refreshHistory: () => Promise<void>;
 
   // History
   conversationsHistory: Conversation[];
@@ -67,6 +71,7 @@ interface ChatContextType {
   }) => Promise<Booking | null>;
   isMyBookingsOpen: boolean;
   setIsMyBookingsOpen: (open: boolean) => void;
+  refreshBookings: () => Promise<void>;
 
   // Media Lightbox
   activeLightboxMedia: MediaAttachment | null;
@@ -114,32 +119,21 @@ const DEFAULT_VEHICLE: VehicleInfo = {
 };
 
 const STORAGE_KEYS = {
-  CONVERSATIONS: 'autotech_conversations_v3',
-  ACTIVE_ID: 'autotech_active_id_v3',
-  VEHICLE: 'autotech_vehicle_v3',
-  BOOKINGS: 'autotech_bookings_v3',
   THEME: 'autotech_theme_v3'
 };
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Theme state initialized from storage
+  // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return safeLocalStorageGet<'dark' | 'light'>(STORAGE_KEYS.THEME, 'dark');
   });
 
-  // Vehicle state initialized from storage
-  const [vehicle, setVehicle] = useState<VehicleInfo>(() => {
-    return safeLocalStorageGet<VehicleInfo>(STORAGE_KEYS.VEHICLE, DEFAULT_VEHICLE);
-  });
+  // Vehicle state
+  const [vehicle, setVehicle] = useState<VehicleInfo>(DEFAULT_VEHICLE);
 
-  // History & Bookings initialized from storage
-  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>(() => {
-    return safeLocalStorageGet<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, []);
-  });
-
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    return safeLocalStorageGet<Booking[]>(STORAGE_KEYS.BOOKINGS, []);
-  });
+  // History & Bookings populated directly from backend Database
+  const [conversationsHistory, setConversationsHistory] = useState<Conversation[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Active chat state
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -181,7 +175,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Synchronize DOM theme on mount & change
+  // Synchronize DOM theme
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -204,74 +198,43 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Check Backend Connectivity on mount
+  // Fetch Database History
+  const refreshHistory = useCallback(async () => {
+    const res = await listConversations();
+    if (res.success && res.data) {
+      setConversationsHistory(res.data);
+    }
+  }, []);
+
+  // Fetch Database Bookings
+  const refreshBookings = useCallback(async () => {
+    const res = await listBookings();
+    if (res.success && res.data) {
+      setBookings(res.data);
+    }
+  }, []);
+
+  // Initial Database synchronization on mount
   useEffect(() => {
     let mounted = true;
     checkBackendHealth().then((connected) => {
-      if (mounted) setIsBackendConnected(connected);
+      if (mounted) {
+        setIsBackendConnected(connected);
+        if (connected) {
+          refreshHistory();
+          refreshBookings();
+        }
+      }
     });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refreshHistory, refreshBookings]);
 
-  // Save vehicle changes to storage
+  // Update vehicle
   const updateVehicle = useCallback((info: Partial<VehicleInfo>) => {
-    setVehicle((prev) => {
-      const updated = { ...prev, ...info };
-      safeLocalStorageSet(STORAGE_KEYS.VEHICLE, updated);
-      return updated;
-    });
+    setVehicle((prev) => ({ ...prev, ...info }));
   }, []);
-
-  // Save active conversation state into the conversationsHistory list and localStorage
-  const syncActiveConversationToHistory = useCallback(
-    (
-      convId: string,
-      currentMessages: Message[],
-      currentMedia: MediaAttachment[],
-      currentDiag: Diagnosis | null,
-      customStatus?: 'active' | 'diagnosed' | 'booked'
-    ) => {
-      if (!convId) return;
-
-      const firstUserMsg = currentMessages.find((m) => m.sender === 'user');
-      const title = firstUserMsg
-        ? firstUserMsg.content.slice(0, 45) + (firstUserMsg.content.length > 45 ? '...' : '')
-        : 'Diagnostic Session';
-
-      const status = customStatus || (currentDiag ? 'diagnosed' : 'active');
-
-      setConversationsHistory((prev) => {
-        const existingIdx = prev.findIndex((c) => c.id === convId);
-        const updatedConv: Conversation = {
-          id: convId,
-          car_make: vehicle.make,
-          car_model: vehicle.model,
-          car_year: vehicle.year,
-          title: title,
-          status: status,
-          messages: currentMessages,
-          media_attachments: currentMedia,
-          diagnosis: currentDiag || undefined,
-          created_at: existingIdx >= 0 ? prev[existingIdx].created_at : new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        let newHistory: Conversation[];
-        if (existingIdx >= 0) {
-          newHistory = [...prev];
-          newHistory[existingIdx] = updatedConv;
-        } else {
-          newHistory = [updatedConv, ...prev];
-        }
-
-        safeLocalStorageSet(STORAGE_KEYS.CONVERSATIONS, newHistory);
-        return newHistory;
-      });
-    },
-    [vehicle]
-  );
 
   // Send Chat Message
   const sendMessage = useCallback(
@@ -279,7 +242,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const trimmed = text.trim();
       if (!trimmed || isLoading) return;
 
-      // Temporary optimistic user message
       const tempUserMsg: Message = {
         id: generateId('msg-user-temp'),
         conversation: conversationId || '',
@@ -307,7 +269,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
 
       if (response.success && response.data) {
-        // Critical Bug Fix: Save the authoritative server conversation ID
         const serverConvId = response.data.conversation_id;
         setConversationId(serverConvId);
 
@@ -318,7 +279,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ];
         setMessages(finalMessages);
 
-        // Update vehicle state if backend detected a car make
         if (response.data.car_make && !vehicle.make) {
           updateVehicle({
             make: response.data.car_make,
@@ -327,7 +287,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
         }
 
-        syncActiveConversationToHistory(serverConvId, finalMessages, mediaAttachments, diagnosis);
+        // Refresh database history list
+        refreshHistory();
       } else {
         const errMsg = response.error?.message || 'Failed to communicate with diagnostic server.';
         setError(errMsg);
@@ -338,7 +299,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     },
-    [conversationId, isLoading, mediaAttachments, messages, vehicle, diagnosis, syncActiveConversationToHistory, updateVehicle, addToast]
+    [conversationId, isLoading, mediaAttachments, messages, vehicle, updateVehicle, refreshHistory, addToast]
   );
 
   // Upload Media
@@ -355,7 +316,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newAttachments = [...mediaAttachments, newAttachment];
         setMediaAttachments(newAttachments);
 
-        // Critical Bug Fix: Save server conversation ID if newly created on upload
         const serverConvId = newAttachment.conversation ? String(newAttachment.conversation) : conversationId;
         if (serverConvId && serverConvId !== conversationId) {
           setConversationId(serverConvId);
@@ -363,7 +323,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const effectiveConvId = serverConvId || conversationId || '';
 
-        // System notification message
         const sysMsg: Message = {
           id: generateId('sys-msg'),
           conversation: effectiveConvId,
@@ -376,9 +335,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newMessages = [...messages, sysMsg];
         setMessages(newMessages);
 
-        if (effectiveConvId) {
-          syncActiveConversationToHistory(effectiveConvId, newMessages, newAttachments, diagnosis);
-        }
+        refreshHistory();
 
         addToast({
           type: 'success',
@@ -398,7 +355,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
     },
-    [conversationId, mediaAttachments, messages, diagnosis, syncActiveConversationToHistory, addToast]
+    [conversationId, mediaAttachments, messages, refreshHistory, addToast]
   );
 
   const removeAttachment = useCallback((id: string) => {
@@ -434,8 +391,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (response.success && response.data) {
       const diag = response.data;
       setDiagnosis(diag);
-
-      syncActiveConversationToHistory(conversationId, messages, mediaAttachments, diag, 'diagnosed');
+      refreshHistory();
 
       addToast({
         type: 'success',
@@ -451,7 +407,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         message: errMsg
       });
     }
-  }, [conversationId, messages, mediaAttachments, syncActiveConversationToHistory, addToast]);
+  }, [conversationId, messages, refreshHistory, addToast]);
 
   // Start New Session
   const startNewSession = useCallback(() => {
@@ -469,78 +425,65 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [addToast]);
 
-  // Load Session from History (synchronizing with backend GET /api/conversation/{id}/)
+  // Load Session directly from backend Database (GET /api/conversation/{id}/)
   const loadSession = useCallback(
     async (convId: string) => {
-      const foundLocal = conversationsHistory.find((c) => c.id === convId);
-
       setConversationId(convId);
-      if (foundLocal) {
-        setMessages(foundLocal.messages && foundLocal.messages.length > 0 ? foundLocal.messages : [createInitialWelcomeMessage()]);
-        setMediaAttachments(foundLocal.media_attachments || []);
-        setDiagnosis(foundLocal.diagnosis || null);
-        if (foundLocal.car_make) {
-          setVehicle((prev) => ({
-            ...prev,
-            make: foundLocal.car_make || prev.make,
-            model: foundLocal.car_model || prev.model,
-            year: foundLocal.car_year || prev.year
-          }));
-        }
-      }
-      setError(null);
       setIsSidebarOpen(false);
+      setError(null);
 
-      // Fetch authoritative state from backend
       const serverRes = await getConversationDetails(convId);
       if (serverRes.success && serverRes.data) {
         const sData = serverRes.data;
-        if (sData.messages && sData.messages.length > 0) {
-          setMessages(sData.messages);
-        }
-        if (sData.media_attachments) {
-          setMediaAttachments(sData.media_attachments);
-        }
-        if (sData.diagnosis) {
-          setDiagnosis(sData.diagnosis);
-        }
+        setMessages(sData.messages && sData.messages.length > 0 ? sData.messages : [createInitialWelcomeMessage()]);
+        setMediaAttachments(sData.media_attachments || []);
+        setDiagnosis(sData.diagnosis || null);
         if (sData.car_make) {
-          setVehicle((prev) => ({
-            ...prev,
-            make: sData.car_make || prev.make,
-            model: sData.car_model || prev.model,
-            year: sData.car_year || prev.year
-          }));
+          setVehicle({
+            make: sData.car_make,
+            model: sData.car_model || '',
+            year: sData.car_year || '',
+            mileage: '',
+            engine: ''
+          });
         }
+        addToast({
+          type: 'info',
+          title: 'Session Loaded',
+          message: `Loaded diagnostic session from database.`
+        });
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Load Failed',
+          message: serverRes.error?.message || 'Could not load session from database.'
+        });
       }
-
-      addToast({
-        type: 'info',
-        title: 'Session Loaded',
-        message: `Loaded diagnostic session.`
-      });
     },
-    [conversationsHistory, addToast]
+    [addToast]
   );
 
-  // Delete Session from History
+  // Delete Session directly from backend Database (DELETE /api/conversation/{id}/)
   const deleteSession = useCallback(
-    (convId: string) => {
-      setConversationsHistory((prev) => {
-        const filtered = prev.filter((c) => c.id !== convId);
-        safeLocalStorageSet(STORAGE_KEYS.CONVERSATIONS, filtered);
-        return filtered;
-      });
-
-      if (conversationId === convId) {
-        startNewSession();
+    async (convId: string) => {
+      const res = await deleteConversation(convId);
+      if (res.success) {
+        setConversationsHistory((prev) => prev.filter((c) => c.id !== convId));
+        if (conversationId === convId) {
+          startNewSession();
+        }
+        addToast({
+          type: 'info',
+          title: 'Session Deleted',
+          message: 'Conversation removed from database.'
+        });
+      } else {
+        addToast({
+          type: 'error',
+          title: 'Delete Failed',
+          message: res.error?.message || 'Failed to delete conversation.'
+        });
       }
-
-      addToast({
-        type: 'info',
-        title: 'Session Deleted',
-        message: 'Conversation history item removed.'
-      });
     },
     [conversationId, startNewSession, addToast]
   );
@@ -600,15 +543,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? `${vehicle.year || ''} ${vehicle.make} ${vehicle.model || ''}`.trim()
           : 'Customer Vehicle';
 
-        setBookings((prev) => {
-          const updated = [newBooking, ...prev];
-          safeLocalStorageSet(STORAGE_KEYS.BOOKINGS, updated);
-          return updated;
-        });
-
-        if (conversationId) {
-          syncActiveConversationToHistory(conversationId, messages, mediaAttachments, targetDiag, 'booked');
-        }
+        // Refresh database bookings and conversation history
+        refreshBookings();
+        refreshHistory();
 
         addToast({
           type: 'success',
@@ -627,7 +564,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
     },
-    [activeBookingDiagnosis, diagnosis, vehicle, conversationId, messages, mediaAttachments, syncActiveConversationToHistory, addToast]
+    [activeBookingDiagnosis, diagnosis, vehicle, refreshBookings, refreshHistory, addToast]
   );
 
   // Lightbox handlers
@@ -680,6 +617,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startNewSession,
       loadSession,
       deleteSession,
+      refreshHistory,
       conversationsHistory,
       activeSessionStatus,
       bookings,
@@ -690,6 +628,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createNewBooking,
       isMyBookingsOpen,
       setIsMyBookingsOpen,
+      refreshBookings,
       activeLightboxMedia,
       openLightbox,
       closeLightbox,
@@ -724,6 +663,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startNewSession,
       loadSession,
       deleteSession,
+      refreshHistory,
       conversationsHistory,
       activeSessionStatus,
       bookings,
@@ -733,6 +673,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       closeBookingModal,
       createNewBooking,
       isMyBookingsOpen,
+      refreshBookings,
       activeLightboxMedia,
       openLightbox,
       closeLightbox,
