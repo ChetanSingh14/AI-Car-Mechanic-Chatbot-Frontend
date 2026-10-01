@@ -20,7 +20,11 @@ export function getClientToken(): string {
   if (typeof window === 'undefined') return '';
   let token = localStorage.getItem('autotech_client_token');
   if (!token) {
-    token = 'clt_' + Math.random().toString(36).substring(2, 14) + '_' + Date.now().toString(36);
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      token = 'clt_' + crypto.randomUUID();
+    } else {
+      token = 'clt_' + Math.random().toString(36).substring(2, 14) + '_' + Date.now().toString(36);
+    }
     localStorage.setItem('autotech_client_token', token);
   }
   return token;
